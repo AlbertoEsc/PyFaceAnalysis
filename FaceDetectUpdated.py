@@ -1,13 +1,9 @@
 #! /usr/bin/env python
 
-#Disc0
-#JustFlowFaceCentering2. PCA75 GSFA9 Dx 48, Dy 24, Da 27000, Dsampling 187_1468848755.pckl
-#GaussianClassifier_NetNameDirect PCA-GSFA Network for FaceCenteringiTrainNameFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_NetH1468848755_CFSlowHb02e4e2738771950b9961964e3d3a73f_NumSig009.pckl
-
-
-#Special purpose hierarchical network pipeline for data processing
+#Face detection software based on several HSFA or HiGSFA Networks
+#This program implements a special purpose hierarchical network pipeline for image processing
 #Each network is a hierarchical implementation of Slow Feature Analysis (dimensionality reduction) followed by a regression algorithm
-#Now with performance analysis based on FRGC metadata or a coordinate file, work in progress
+#Now with performance analysis based on a coordinate file with gound-truth, work in progress
 #Now with extensive error measurements
 #By Alberto Escalante. Alberto.Escalante@neuroinformatik.ruhr-uni-bochum.de First Version 7 Juni 2010
 #Ruhr-University-Bochum, Institute of Neural Computation, Group of Prof. Dr. Wiskott
@@ -16,11 +12,6 @@ import numpy
 import scipy
 
 display_plots = True and False
-
-#if display_plots:
-#    import matplotlib as mpl
-#    mpl.use('Qt4Agg')
-#    import matplotlib.pyplot as plt
 
 import PIL
 from PIL import Image
@@ -50,8 +41,6 @@ import getopt
 
 command_line_interface = True #and False
 display_only_diagonal = False #or True
-#load_FRGC_images = True
-#save_frgc_data = True
 adaptive_grid_coords = True
 adaptive_grid_scale = True
 smallest_face = 0.20 # 20% of image size
@@ -68,11 +57,12 @@ skip_existing_output = False
 save_patches = False #or True
 save_patches_base_dir = "./saved_patches"
 network_figures_together = True #and False
-cut_offs_face = [0.99, 0.95, 0.85, 0.8, 0.7, 0.6, 0.5, 0.45, 0.4, 0.35] #[0.99995,0.999,0.99997,0.9,0.8]
+cut_offs_face = [0.99, 0.95, 0.85, 0.8, 0.7, 0.6, 0.5, 0.45, 0.10, 0.05] #[0.99995,0.999,0.99997,0.9,0.8]
 last_cut_off_face = -1
 write_age_gender_confidence = True #and False
 show_confidences = True
 show_final_detection = False or True
+camera_enabled = False
 
 patch_overlap_sampling = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 2 patches
 patch_overlap_posx_posy = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 4 patches (twice overlap in each direction)
@@ -301,7 +291,12 @@ def load_true_coordinates(base_dir, true_coordinates_file):
             count += 1
             coordinates_dir[full_image_filename] = numpy.array(all_coordinates)
     return image_filenames, coordinates_dir
+
+def pygame_sourface_to_PIL_image(im_pygame):
+    imgstr = pygame.image.tostring(im_pygame, 'RGB')
+    return Image.frombytes('RGB', im_pygame.get_size(), imgstr, "raw")
     
+
 numpy.random.seed(12345600)
 
 verbose_pipeline = False
@@ -504,7 +499,8 @@ if command_line_interface:
             opts, args = getopt.getopt(argv[1:], "b:", ["batch=","smallest_face=","right_screen_eye_first", "display_errors=", "display_plots=", 
                                                         "coordinates_filename=", "true_coordinates_file=", "skip_existing_output=", "write_results=", 
                                                         "adaptive_grid_scale=", "adaptive_grid_coords=", "save_patches=","network_figures_together=", 
-                                                        "last_cut_off_face=", "cut_offs_face=", "write_age_gender_confidence=", "show_final_detection=" ])
+                                                        "last_cut_off_face=", "cut_offs_face=", "write_age_gender_confidence=", "show_final_detection=",
+                                                        "camera_enabled=" ])
             files_set=False
             print "opts=", opts
             print "args=", args
@@ -591,6 +587,9 @@ if command_line_interface:
                 elif opt in ('--show_final_detection'):
                     show_final_detection = bool(int(arg))
                     print "Setting show_final_detection to", show_final_detection
+                elif opt in ('--camera_enabled'):
+                    camera_enabled = bool(int(arg))
+                    print "Setting camera_enabled to", camera_enabled                      
                 else:
                     print "Option not handled:", opt
 
@@ -620,9 +619,35 @@ else: #Use FRGC images
     
 if last_cut_off_face >= 0:
     print "Updating last cut_off to", last_cut_off_face
-    cut_offs_face[num_networks-3] = last_cut_off_face
+    cut_offs_face[9] = last_cut_off_face #There are exactly 10 possible cut_offs, not all necessarily used, except for the last one
     print "cut_offs_face=", cut_offs_face
 
+if camera_enabled:
+    import pygame
+    import pygame.camera
+    import pygame.image
+
+    pygame.camera.init()
+        
+    cameras = pygame.camera.list_cameras()
+    print "cameras available=", cameras
+    if len(cameras) == 0:
+        ex = "No cameras found"
+        raise Exception(ex)
+
+    print "Using camera %s ..." % cameras[0]
+
+    webcam = pygame.camera.Camera(cameras[0])
+    webcam.start()
+
+    image = webcam.get_image()
+    
+    screen = pygame.display.set_mode( ( image.get_width(), image.get_height() ) )
+    pygame.display.set_caption("Camera View")
+    screen.blit(image, (0,0))
+    pygame.display.flip()
+    image_numbers = numpy.arange(0, 3)
+    
 database_original_points = {}
 if coordinates_filename != None:
     coordinates_file = open(coordinates_filename, "r")
@@ -705,9 +730,12 @@ default_sampling_values = [3.0] # [2.0, 3.8] # 2.0 to 4.0 for FRGC, 1.6
 #Error measures for each image, sampling_value, network_number, box_number
 #Include rel_ab_error, rel_scale_error, rel_eyepos_error, rel_eye_error
 
+#plt.show(block=False) #WARNING!!!!
+
 #Perhaps exchange sampling and image???
 max_num_plots=10
 num_plots=0
+
 
 for im_number in image_numbers:
 #    if load_FRGC_images:
@@ -726,8 +754,23 @@ for im_number in image_numbers:
     
     #for now images has a single image
     print "I",
-    images = load_images([image_filenames[im_number]], image_format="L")
-    images_rgb = load_images([image_filenames[im_number]], image_format="RGB")
+    if not camera_enabled:
+        images = load_images([image_filenames[im_number]], image_format="L")
+        images_rgb = load_images([image_filenames[im_number]], image_format="RGB")
+    else:
+        for i in range(5): #hoping to ensure the image is fresh
+            im_pygame = webcam.get_image()
+        screen.blit(im_pygame, (0,0))
+        pygame.display.flip()
+        for e in pygame.event.get() :
+            if e.type == pygame.QUIT :
+                quit()
+        print "******************************************* pygame.display.flip *******************************"
+        im = pygame_sourface_to_PIL_image(im_pygame)
+        
+        images = [im.convert("L")]
+        images_rgb = [im]
+        print "images[0]=", images[0]
 
     #print images
     #quit()
@@ -933,8 +976,7 @@ for im_number in image_numbers:
                 p35 = plt.subplot(1,1,1)
                 f0 = plt.figure() 
                 plt.suptitle("Iterative Face Detection 36"+network_types[16])
-                p36 = plt.subplot(1,1,1)
-
+                p36 = plt.subplot(1,1,1)           
     #        print "len(images)",len(images)
     #        quit()
             p11.imshow(im_disp, aspect='auto', interpolation='nearest', origin='upper', cmap=mpl.pyplot.cm.gray)
