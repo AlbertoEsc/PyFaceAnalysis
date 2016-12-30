@@ -1,0 +1,48 @@
+15
+45 20 0.55 1.1 64 64 128 128
+10 10 0.675 0.975 32 32 64 64
+Disc0
+NetworkNon-Linear Ultra Thin 11 Layer Network_ParNameFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (550.000000, 1100.000000, 50). Resized images_1281106883.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (550.000000, 1100.000000, 50). Resized images_NetH1281106883_CFSlowH899564315eebb3438b151e2fecef79ed_NumSig003.pckl
+PosX0
+NetworkNon-Linear Ultra Thin 11 Layer Network_ParNameRTans X Dx in (-45, 45) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_1278512478.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameRTans X Dx in (-45, 45) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_NetH1278512478_CFSlowH978e742e124a07ca9c3705470ab22be5_NumSig017.pckl
+PosY0
+NetworkTest Non-Linear 11 Layer Thin Network_ParNameRTans Y Dx in (-20, 20) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_1275988863.pckl
+GaussianClassifier_NetNameTest Non-Linear 11 Layer Thin Network_ParNameRTans Y Dx in (-20, 20) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_NetH1275988863_CFSlowH363e301d9f4d14cb625517d263f991c9_NumSig015.pckl
+Scale0
+NetworkTest Non-Linear 11 Layer Thin Network_ParNameScale. Dx in (-20, 20) Dy in (-10, 10), sampling in (55.000000, 110.000000, 50). Resized images_1276005021.pckl
+GaussianClassifier_NetNameTest Non-Linear 11 Layer Thin Network_ParNameScale. Dx in (-20, 20) Dy in (-10, 10), sampling in (55.000000, 110.000000, 50). Resized images_NetH1276005021_CFSlowH1742e09a0eadfcf03e04d8ac3378e5ca_NumSig004.pckl
+Disc1
+NetworkNon-Linear Ultra Thin 11 Layer Network_ParNameFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (550.000000, 1100.000000, 50). Resized images_1281106883.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (550.000000, 1100.000000, 50). Resized images_NetH1281106883_CFSlowH899564315eebb3438b151e2fecef79ed_NumSig003.pckl
+PosX1
+NetworkNon-Linear Ultra Thin 11 Layer Network_ParNameRTans X Dx in (-45, 45) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_1278512478.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameRTans X Dx in (-45, 45) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_NetH1278512478_CFSlowH978e742e124a07ca9c3705470ab22be5_NumSig017.pckl
+PosY1
+NetworkTest Non-Linear 11 Layer Thin Network_ParNameRTans Y Dx in (-20, 20) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_1275988863.pckl
+GaussianClassifier_NetNameTest Non-Linear 11 Layer Thin Network_ParNameRTans Y Dx in (-20, 20) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_NetH1275988863_CFSlowH363e301d9f4d14cb625517d263f991c9_NumSig015.pckl
+Scale1
+NetworkTest Non-Linear 11 Layer Thin Network_ParNameScale. Dx in (-20, 20) Dy in (-10, 10), sampling in (55.000000, 110.000000, 50). Resized images_1276005021.pckl
+GaussianClassifier_NetNameTest Non-Linear 11 Layer Thin Network_ParNameScale. Dx in (-20, 20) Dy in (-10, 10), sampling in (55.000000, 110.000000, 50). Resized images_NetH1276005021_CFSlowH1742e09a0eadfcf03e04d8ac3378e5ca_NumSig004.pckl
+Disc2
+NetworkNon-Linear Ultra Thin 11 Layer Network_ParNameFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (550.000000, 1100.000000, 50). Resized images_1281106883.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (550.000000, 1100.000000, 50). Resized images_NetH1281106883_CFSlowH899564315eebb3438b151e2fecef79ed_NumSig003.pckl
+PosX2
+NetworkNon-Linear Ultra Thin 11 Layer Network_ParNameRTans X Dx in (-45, 45) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_1278512478.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameRTans X Dx in (-45, 45) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_NetH1278512478_CFSlowH978e742e124a07ca9c3705470ab22be5_NumSig017.pckl
+PosY2
+NetworkTest Non-Linear 11 Layer Thin Network_ParNameRTans Y Dx in (-20, 20) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_1275988863.pckl
+GaussianClassifier_NetNameTest Non-Linear 11 Layer Thin Network_ParNameRTans Y Dx in (-20, 20) Dy in (-20, 20), sampling in (55.000000, 110.000000). Resized images_NetH1275988863_CFSlowH363e301d9f4d14cb625517d263f991c9_NumSig015.pckl
+Scale2
+NetworkTest Non-Linear 11 Layer Thin Network_ParNameScale. Dx in (-20, 20) Dy in (-10, 10), sampling in (55.000000, 110.000000, 50). Resized images_1276005021.pckl
+GaussianClassifier_NetNameTest Non-Linear 11 Layer Thin Network_ParNameScale. Dx in (-20, 20) Dy in (-10, 10), sampling in (55.000000, 110.000000, 50). Resized images_NetH1276005021_CFSlowH1742e09a0eadfcf03e04d8ac3378e5ca_NumSig004.pckl
+Disc3
+NetworkNon-Linear Ultra Thin 11 Layer Network_ParNameFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (550.000000, 1100.000000, 50). Resized images_1281106883.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (550.000000, 1100.000000, 50). Resized images_NetH1281106883_CFSlowH899564315eebb3438b151e2fecef79ed_NumSig003.pckl
+EyeLX
+NetworkNon-Linear Ultra Thin 11 Layer Network_ParNameREyeTans X Dx in (-10, 10) Dy in (-10, 10), sampling in (67.500000, 97.500000). Resized images_1281367684.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameREyeTans X Dx in (-10, 10) Dy in (-10, 10), sampling in (67.500000, 97.500000). Resized images_NetH1281367684_CFSlowH7fa3efe00da47f5561cc9f8f756a4350_NumSig006.pckl
+EyeLY
+NetworkNon-Linear Ultra Thin 11 Layer Network_ParNameREyeTans XYDx in (-10, 10) Dy in (-10, 10), sampling in (67.500000, 97.500000). Resized images_1281432999.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameREyeTans XYDx in (-10, 10) Dy in (-10, 10), sampling in (67.500000, 97.500000). Resized images_NetH1281432999_CFSlowH61fb22253c590536e926a7511722f11b_NumSig006.pckl

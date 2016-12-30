@@ -1,0 +1,42 @@
+13
+45 20 0.55 1.1 64 64 128 128
+10 10 0.675 0.975 64 64 128 128
+Disc1
+JustFlowFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (450.000000, 1100.000000, 50)_1467216772.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RFaceCentering_Resized images_NetH1467216772_CFSlowHe1ec5c425de602ce4de3e81cda9d7318_NumSig009.pckl
+PosX0
+JustFlowRTansXYPAngScale All Dx in (-40, 40) Dy in (-20, 20), sampling in (55, 110)_1467326992.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RTransXYPAngScale_Resized images_NetH1467644618_CFSlowHab5a71d7fd4537e4fec53f9d57d03aa2_NumSig010.pckl
+PosY0
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RTransXYPAngScale_Resized images_PosY_NetH1467644618_CFSlowHab5a71d7fd4537e4fec53f9d57d03aa2_NumSig010.pckl
+PAng0
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RTransXYPAngScale_Resized images_PAng_NetH1467644618_CFSlowHab5a71d7fd4537e4fec53f9d57d03aa2_NumSig010.pckl
+Scale0
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RTransXYPAngScale_Resized images_Scale_NetH1467644618_CFSlowHab5a71d7fd4537e4fec53f9d57d03aa2_NumSig010.pckl
+Disc3
+JustFlowFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (450.000000, 1100.000000, 50)_1467216772.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RFaceCentering_Resized images_NetH1467216772_CFSlowHe1ec5c425de602ce4de3e81cda9d7318_NumSig009.pckl
+PosX1
+JustFlowRTansXYPAngScale All Dx in (-40, 40) Dy in (-20, 20), sampling in (55, 110)_1467326992.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RTransXYPAngScale_Resized images_NetH1467644618_CFSlowHab5a71d7fd4537e4fec53f9d57d03aa2_NumSig010.pckl
+PosY1
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RTransXYPAngScale_Resized images_PosY_NetH1467644618_CFSlowHab5a71d7fd4537e4fec53f9d57d03aa2_NumSig010.pckl
+PAng1
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RTransXYPAngScale_Resized images_PAng_NetH1467644618_CFSlowHab5a71d7fd4537e4fec53f9d57d03aa2_NumSig010.pckl
+Scale1
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RTransXYPAngScale_Resized images_Scale_NetH1467644618_CFSlowHab5a71d7fd4537e4fec53f9d57d03aa2_NumSig010.pckl
+Disc5
+JustFlowFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (450.000000, 1100.000000, 50)_1467216772.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RFaceCentering_Resized images_NetH1467216772_CFSlowHe1ec5c425de602ce4de3e81cda9d7318_NumSig009.pckl
+EyeLX
+JustFlowFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (450.000000, 1100.000000, 50)_1466690016.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RFaceCentering_Resized images_NetH1466690016_CFSlowHf5487e3148e1a43e921a5a5e89815543_NumSig009.pckl
+EyeLY
+JustFlowFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (450.000000, 1100.000000, 50)_1466690016.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RFaceCentering_Resized images_NetH1466690016_CFSlowHf5487e3148e1a43e921a5a5e89815543_NumSig009.pckl

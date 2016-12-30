@@ -1,0 +1,60 @@
+19
+40 20 22.5 0.694 0.981 64 64 128 128
+10 10 0.675 0.975 64 64 128 128
+Disc1
+JustFlowFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_1468510885.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_NetH1468510885_CFSlowH3cd58ebeae22a263c87e2e99bc3fc907_NumSig009.pckl
+PosX0
+JustFlowRTansXYPAngScale All Dx in (-40, 40) Dy in (-20, 20), sampling in (69, 98)_1468325214.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All PosX (DX40, DY20, DA22, SMin694, SMax981) numsteps 50_NetH1468325214_CFSlowH52a5dabc607fb6a7c2969a99738312de_NumSig010.pckl
+PosY0
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All PosY (DX40, DY20, DA22, SMin694, SMax981) numsteps 50_NetH1468325214_CFSlowH52a5dabc607fb6a7c2969a99738312de_NumSig010.pckl
+PAng0
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All PAng (DX40, DY20, DA22, SMin694, SMax981) numsteps 50_NetH1468325214_CFSlowH52a5dabc607fb6a7c2969a99738312de_NumSig020.pckl
+Scale0
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All Scale (DX40, DY20, DA22, SMin694, SMax981) numsteps 50_NetH1468325214_CFSlowH52a5dabc607fb6a7c2969a99738312de_NumSig020.pckl
+Disc3
+JustFlowFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_1468510885.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_NetH1468510885_CFSlowH3cd58ebeae22a263c87e2e99bc3fc907_NumSig009.pckl
+PosX1
+JustFlowRTansXYPAngScale All Dx in (-14, 14) Dy in (-13, 13), sampling in (69, 98)_1468332771.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All PosX Iter1 (DX14, DY13, DA21, SMin694, SMax981) numsteps 50_NetH1468332771_CFSlowHf338fd39d5be575c8929f075fe41a314_NumSig020.pckl
+PosY1
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All PosY Iter1 (DX14, DY13, DA21, SMin694, SMax981) numsteps 50_NetH1468332771_CFSlowHf338fd39d5be575c8929f075fe41a314_NumSig020.pckl
+PAng1
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All PAng Iter1 (DX14, DY13, DA21, SMin694, SMax981) numsteps 50_NetH1468332771_CFSlowHf338fd39d5be575c8929f075fe41a314_NumSig020.pckl
+Scale1
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All Scale Iter1 (DX14, DY13, DA21, SMin694, SMax981) numsteps 50_NetH1468332771_CFSlowHf338fd39d5be575c8929f075fe41a314_NumSig020.pckl
+Disc5
+JustFlowFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_1468510885.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_NetH1468510885_CFSlowH3cd58ebeae22a263c87e2e99bc3fc907_NumSig009.pckl
+PosX2
+JustFlowRTansXYPAngScale All Dx in (-14, 14) Dy in (-13, 13), sampling in (69, 98)_1468332771.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All PosX Iter1 (DX14, DY13, DA21, SMin694, SMax981) numsteps 50_NetH1468332771_CFSlowHf338fd39d5be575c8929f075fe41a314_NumSig020.pckl
+PosY2
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All PosY Iter1 (DX14, DY13, DA21, SMin694, SMax981) numsteps 50_NetH1468332771_CFSlowHf338fd39d5be575c8929f075fe41a314_NumSig020.pckl
+PAng2
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All PAng Iter1 (DX14, DY13, DA21, SMin694, SMax981) numsteps 50_NetH1468332771_CFSlowHf338fd39d5be575c8929f075fe41a314_NumSig020.pckl
+Scale2
+None0.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameRTransXYPAngScale All Scale Iter1 (DX14, DY13, DA21, SMin694, SMax981) numsteps 50_NetH1468332771_CFSlowHf338fd39d5be575c8929f075fe41a314_NumSig020.pckl
+Disc7
+JustFlowFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_1468510885.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_NetH1468510885_CFSlowH3cd58ebeae22a263c87e2e99bc3fc907_NumSig009.pckl
+Disc9
+JustFlowFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_1468510885.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_NetH1468510885_CFSlowH3cd58ebeae22a263c87e2e99bc3fc907_NumSig009.pckl
+EyeLX
+JustFlowFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (450.000000, 1100.000000, 50)_1466690016.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RFaceCentering_Resized images_NetH1466690016_CFSlowHf5487e3148e1a43e921a5a5e89815543_NumSig009.pckl
+EyeLY
+JustFlowFace Centering. Dx in (-45, 45) Dy in (-19, 19), sampling in (450.000000, 1100.000000, 50)_1466690016.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer Network_ParNameFunction Based Data Creation for RFaceCentering_Resized images_NetH1466690016_CFSlowHf5487e3148e1a43e921a5a5e89815543_NumSig009.pckl
