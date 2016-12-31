@@ -63,6 +63,10 @@ write_age_gender_confidence = True #and False
 show_confidences = True
 show_final_detection = False or True
 camera_enabled = False
+track_single_face= False
+pygame_display = False
+screen_width = 640
+screen_height = 400
 
 patch_overlap_sampling = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 2 patches
 patch_overlap_posx_posy = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 4 patches (twice overlap in each direction)
@@ -500,7 +504,7 @@ if command_line_interface:
                                                         "coordinates_filename=", "true_coordinates_file=", "skip_existing_output=", "write_results=", 
                                                         "adaptive_grid_scale=", "adaptive_grid_coords=", "save_patches=","network_figures_together=", 
                                                         "last_cut_off_face=", "cut_offs_face=", "write_age_gender_confidence=", "show_final_detection=",
-                                                        "camera_enabled=" ])
+                                                        "camera_enabled=", "track_single_face=", "pygame_display=" ])
             files_set=False
             print "opts=", opts
             print "args=", args
@@ -589,7 +593,13 @@ if command_line_interface:
                     print "Setting show_final_detection to", show_final_detection
                 elif opt in ('--camera_enabled'):
                     camera_enabled = bool(int(arg))
-                    print "Setting camera_enabled to", camera_enabled                      
+                    print "Setting camera_enabled to", camera_enabled
+                elif opt in ('--track_single_face'):
+                    track_single_face = bool(int(arg))
+                    print "Setting track_single_face to", track_single_face      
+                elif opt in ('--pygame_display'):
+                    pygame_display = bool(int(arg))
+                    print "Setting pygame_display to", pygame_display  
                 else:
                     print "Option not handled:", opt
 
@@ -641,12 +651,15 @@ if camera_enabled:
     webcam.start()
 
     image = webcam.get_image()
-    
-    screen = pygame.display.set_mode( ( image.get_width(), image.get_height() ) )
+    image_numbers = numpy.arange(0, 1000)
+    screen_width = image.get_width()
+    screen_height = image.get_height()
+
+if pygame_display:
+    screen = pygame.display.set_mode(( screen_width, screen_height))
     pygame.display.set_caption("Camera View")
     screen.blit(image, (0,0))
-    pygame.display.flip()
-    image_numbers = numpy.arange(0, 3)
+    pygame.display.update() #pygame.display.flip()
     
 database_original_points = {}
 if coordinates_filename != None:
@@ -733,6 +746,8 @@ default_sampling_values = [3.0] # [2.0, 3.8] # 2.0 to 4.0 for FRGC, 1.6
 #plt.show(block=False) #WARNING!!!!
 
 #Perhaps exchange sampling and image???
+face_has_been_found = False
+t_previous_capture = False
 max_num_plots=10
 num_plots=0
 
@@ -758,19 +773,27 @@ for im_number in image_numbers:
         images = load_images([image_filenames[im_number]], image_format="L")
         images_rgb = load_images([image_filenames[im_number]], image_format="RGB")
     else:
-        for i in range(5): #hoping to ensure the image is fresh
+        for i in range(10): #hoping to ensure the image is fresh
             im_pygame = webcam.get_image()
-        screen.blit(im_pygame, (0,0))
-        pygame.display.flip()
-        for e in pygame.event.get() :
-            if e.type == pygame.QUIT :
-                quit()
-        print "******************************************* pygame.display.flip *******************************"
+
         im = pygame_sourface_to_PIL_image(im_pygame)
         
         images = [im.convert("L")]
         images_rgb = [im]
         print "images[0]=", images[0]
+        t = time.time()
+        if t_previous_capture is not None:
+            print "%.5f Frames per second ##############################"%(1.0/(t-t_previous_capture))
+        t_previous_capture = t
+
+    if pygame_display:
+        if not camera_enabled:
+            im_pygame =  pygame.image.fromstring(images[0].tobytes(), images[0].size, mages[0].mode)
+        screen.blit(im_pygame, (0,0))
+        ####pygame.display.flip()
+        for e in pygame.event.get() :
+            if e.type == pygame.QUIT :
+                quit()
 
     #print images
     #quit()
@@ -780,7 +803,16 @@ for im_number in image_numbers:
     t2 = time.time()
 #    benchmark.append(("Image loading a sampling value %f"%sampling_value, t2-t1))
 
-    if adaptive_grid_scale:
+    if face_has_been_found and track_single_face:
+        b_x0 = tracked_face[0]
+        b_y0 = tracked_face[1]
+        b_x1 = tracked_face[2]
+        b_y1 = tracked_face[3]
+
+        face_size = 0.5 * abs(b_x1-b_x0) + 0.5 * abs(b_y1-b_y0)
+        sampling_value = face_size * 1.0  / subimage_width ###/ net_mins #What is net_mins, the forced scaling factor? why is it relevant?
+        sampling_values = [sampling_value]
+    elif adaptive_grid_scale:
         min_side = min(im_height, im_width)
         min_box_side = max(20, min_side * smallest_face * 0.825/ net_mins) # * 0.825/0.55) #smallest face patch should be at least 20 pixels!
         min_sampling_value = min_box_side * 1.0 / subimage_width
@@ -805,7 +837,19 @@ for im_number in image_numbers:
 
 
     for sampling_value in sampling_values:        
-        if adaptive_grid_coords: 
+        if face_has_been_found and track_single_face:
+            patch_width = subimage_width * sampling_value
+            patch_height = subimage_height * sampling_value
+            
+            patch_sepx = net_Dx * 2.0 * patch_width/regression_width
+            patch_sepy = net_Dy * 2.0 * patch_height/regression_height
+
+            #posX_values = [tracked_face[0], tracked_face[0]+patch_sepx, tracked_face[0] - patch_sepx,            tracked_face[0], tracked_face[0] ]
+            #posY_values = [tracked_face[1],            tracked_face[1],              tracked_face[1], tracked_face[1]+patch_sepy, tracked_face[1]-patch_sepy ]
+            posX_values = [tracked_face[0]]
+            posY_values = [tracked_face[1]]
+            
+        elif adaptive_grid_coords: 
             #Patch width and height in image coordinates
             #This is weird, why using regression_width here? I need logical pixels!!! => subimage_width
             patch_width = subimage_width * sampling_value# regression_width * sampling_value 
@@ -870,7 +914,13 @@ for im_number in image_numbers:
         curr_image_indices = orig_image_indices + 0
         curr_orig_index = numpy.arange(curr_num_subimages)
 
-
+        if face_has_been_found and tracked_face and pygame_display:
+            b_x0,b_y0,b_x1,b_y1 = orig_subimage_coordinates[0]
+            wx = abs(b_x1 - b_x0)
+            wy = abs(b_y1 - b_y0)
+            pygame.draw.rect(screen, (150, 255, 150), (b_x0,b_y0,wx,wy), 2)
+        
+        
         num_plots += 1
         if num_plots > max_num_plots:
             display_plots = False
@@ -1361,11 +1411,12 @@ for im_number in image_numbers:
                 else:
                     pass #warning!
 #                    print "No face present"
-            
-        tmp_subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height) )
-        for i in range(len(tmp_subimages)):
-            print "saving patch"
-            tmp_subimages[i].save("saved_patches/patch_im%03d_PAngle%f.jpg"%(i,curr_angles[i]))
+        
+        if save_patches:
+            tmp_subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height) )
+            for i in range(len(tmp_subimages)):
+                print "saving patch"
+                tmp_subimages[i].save("saved_patches/patch_im%03d_PAngle%f.jpg"%(i,curr_angles[i]))
 
 #TODO: POSITION OF EYES SHOULD NOW BE ROTATED ACCORDING TO FACE ANGLE IN PLANE
         eyes_coords_orig = numpy.zeros((len(curr_subimage_coordinates), 4))
@@ -1423,7 +1474,8 @@ for im_number in image_numbers:
                 else:
                     print "Unknown network type! (expecting either EyeLX or EyeLY)", network_types[num_network]
                     quit()
-
+        print "LE found *********************************************************************"
+        
         #Right eye only!
         #Swap horizontal coordinates
         eyesRhack_box = eyesR_box_orig + 0.0
@@ -1458,6 +1510,7 @@ for im_number in image_numbers:
                 else:
                     print "Unknown network type!", network_types[num_network]
                     quit()
+        print "RE found *********************************************************************"
 
         #Undo horizontal swap of coordinates
         eyesR_box = eyesRhack_box + 0.0
@@ -1621,7 +1674,14 @@ for im_number in image_numbers:
     detected_faces_eyes_confidences_purgued = purgueDetectedFacesEyesConfidence(detected_faces_eyes_confidences)
     print "\n%d Faces/Eyes detected after purge:"%len(detected_faces_eyes_confidences_purgued), detected_faces_eyes_confidences_purgued
 
-
+    if track_single_face:
+        if len(detected_faces_eyes_confidences_purgued) > 0:
+            face_eyes_coords = detected_faces_eyes_confidences_purgued[0]
+            tracked_face = (face_eyes_coords[0], face_eyes_coords[1], face_eyes_coords[2], face_eyes_coords[3])
+            face_has_been_found = True
+        else:
+            face_has_been_found = False      
+               
     if show_final_detection:
         f0 = plt.figure()
         plt.suptitle("Final face detections")
@@ -1633,6 +1693,19 @@ for im_number in image_numbers:
             plt.plot([b_x0, b_x1, b_x1, b_x0, b_x0], [b_y0, b_y0, b_y1, b_y1, b_y0], color=color, linewidth=2)
             plt.plot([el_x], [el_y], "bo")
             plt.plot([er_x], [er_y], "yo")
+    
+    if pygame_display:
+        for face_eyes_coords in detected_faces_eyes_confidences_purgued:
+            b_x0, b_y0, b_x1, b_y1, el_x, el_y, er_x, er_y, conf = map(int, map(round, face_eyes_coords))
+            
+            #plt.plot([b_x0, b_x1, b_x1, b_x0, b_x0], [b_y0, b_y0, b_y1, b_y1, b_y0], color=color, linewidth=2)
+            pygame.draw.rect(screen, (255, 255, 255), (b_x0,b_y0,b_x1-b_x0,b_y1-b_y0), 2)
+            #plt.plot([el_x], [el_y], "bo")
+            pygame.draw.circle(screen, (0, 0, 255), (el_x,el_y), 5, 0)
+            #plt.plot([er_x], [er_y], "yo")
+            pygame.draw.circle(screen, (255, 255, 0), (er_x,er_y), 5, 0)
+            pygame.draw.circle(screen, (255, 255, 255), (0,0), 1, 0)
+        pygame.display.update()
                 
     if write_results:
         print "writing face/eyes positions to disk. File:", output_filenames[im_number]
