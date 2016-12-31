@@ -65,8 +65,8 @@ show_final_detection = False or True
 camera_enabled = False
 track_single_face= False
 pygame_display = False
-screen_width = 640
-screen_height = 400
+screen_width = 3648 # 640
+screen_height = 2736 #400
 
 patch_overlap_sampling = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 2 patches
 patch_overlap_posx_posy = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 4 patches (twice overlap in each direction)
@@ -632,10 +632,11 @@ if last_cut_off_face >= 0:
     cut_offs_face[9] = last_cut_off_face #There are exactly 10 possible cut_offs, not all necessarily used, except for the last one
     print "cut_offs_face=", cut_offs_face
 
-if camera_enabled:
+if camera_enabled or pygame_display:
     import pygame
-    import pygame.camera
     import pygame.image
+if camera_enabled:
+    import pygame.camera
 
     pygame.camera.init()
         
@@ -657,9 +658,10 @@ if camera_enabled:
 
 if pygame_display:
     screen = pygame.display.set_mode(( screen_width, screen_height))
-    pygame.display.set_caption("Camera View")
-    screen.blit(image, (0,0))
-    pygame.display.update() #pygame.display.flip()
+    pygame.display.set_caption("Pygame/Camera View")
+    if camera_enabled:
+        screen.blit(image, (0,0))
+        pygame.display.update() #pygame.display.flip()
     
 database_original_points = {}
 if coordinates_filename != None:
@@ -788,7 +790,7 @@ for im_number in image_numbers:
 
     if pygame_display:
         if not camera_enabled:
-            im_pygame =  pygame.image.fromstring(images[0].tobytes(), images[0].size, mages[0].mode)
+            im_pygame =  pygame.image.fromstring(images_rgb[0].tobytes(), images_rgb[0].size, images_rgb[0].mode)
         screen.blit(im_pygame, (0,0))
         ####pygame.display.flip()
         for e in pygame.event.get() :
@@ -1821,7 +1823,14 @@ if display_errors:
 if plots_created or show_final_detection:
     print "Displaying one or more plots"
     plt.show()
-    
+
+if pygame_display:
+    while True:
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                print "e=", e
+                quit()
+                
 print "Program successfully finished"
 #from GenerateSystemParameters import Linear4LNetwork as Network
 #This defines the sequences used for training, and testing
