@@ -300,7 +300,12 @@ def pygame_sourface_to_PIL_image(im_pygame):
     imgstr = pygame.image.tostring(im_pygame, 'RGB')
     return Image.frombytes('RGB', im_pygame.get_size(), imgstr, "raw")
     
-
+def image_array_contrast_normalize_avg_std(subimages_array, mean=0.0, std=0.2):
+    subimages_array -= subimages_array.mean(axis=1).reshape((-1,1)) 
+    subimages_array /= (subimages_array.std(axis=1).reshape((-1,1)) / std) + 0.00000001 # std ends up being multiplied, division over zero is avoided
+    subimages_array += mean 
+    numpy.clip(subimages_array, 0.0, 255.0, subimages_array)
+    
 numpy.random.seed(12345600)
 
 verbose_pipeline = False
@@ -1074,11 +1079,20 @@ for im_number in image_numbers:
             if skip_image_extraction == 0:
                 #Get arrays
                 print "P",
+                    
                 subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height), interpolation_format)
                 if len(subimages) > 0:
                     subimages_arr = images_asarray(subimages)+0.0
+                    contrast_normalize = True
+                    if contrast_normalize:
+                        print "min and max image array intensities are:", subimages_arr.min(), subimages_arr.max()
+                        print "original mean and std are:", subimages_arr.mean(), subimages_arr.std()
+                        image_array_contrast_normalize_avg_std(subimages_arr, 127.5, 0.2*255)
+                        print "After contrast normalization min and max image array intensities are:", subimages_arr.min(), subimages_arr.max()
+                        #quit()
                 else:
                     subimages_arr = numpy.zeros((0,0))
+
             else:
                 print "reusing existing subimage patches, since network is None or previous net is Disc"
              
@@ -1219,7 +1233,7 @@ for im_number in image_numbers:
                 new_orig_index = curr_orig_index[new_wrong_images==0] + 0
             
 
-                if verbose_networks:            
+                if verbose_networks or network_type=="Disc":            
                     print "%d / %d valid images"%(new_num_subimages, curr_num_subimages)
                 #Overwrite current values
                 curr_num_subimages = new_num_subimages
@@ -1414,6 +1428,7 @@ for im_number in image_numbers:
                     pass #warning!
 #                    print "No face present"
         
+        #Warning: these are not the true patches that were processed. These are freshly loaded patches
         if save_patches:
             tmp_subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height) )
             for i in range(len(tmp_subimages)):
