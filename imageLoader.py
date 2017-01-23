@@ -1,12 +1,11 @@
-#Basic functions for loading sequences of images
-#By Alberto Escalante. Alberto.Escalante@neuroinformatik.ruhr-uni-bochum.de First Version 15 July 2009
+#Functions for loading several images
+#By Alberto Escalante. Alberto.Escalante@neuroinformatik.ruhr-uni-bochum.de 
+#First Version 15 July 2009
 
 import numpy
 #import scipy
 import scipy.misc
 
-#import matplotlib as mpl
-#import matplotlib.pyplot as plt
 import PIL
 from PIL import Image
 from PIL import ImageOps
@@ -530,7 +529,7 @@ def load_image_data_monoprocessor(image_files, image_array, image_width, image_h
                         else:
                             print "Unhandled contrast enhance method"
                             quit()
-                    elif contrast_enhance is None:
+                    elif (contrast_enhance is None) or str(contrast_enhance).startswith("array_mean_std"):
                         im_contrasted = im_rotated
                         Delta_x_rotated = Delta_y_rotated = 0
                     else:
@@ -631,7 +630,7 @@ def load_image_data_monoprocessor(image_files, image_array, image_width, image_h
                         else:
                             print "Incorrect method (unknown constant enhancement)", contrast_enhance
                             quit()
-                    elif contrast_enhance is None:
+                    elif (contrast_enhance is None) or str(contrast_enhance).startswith("array_mean_std"):
                         im_contrasted = im_rotated
                     else:
                         print "Unknown contrast_enhance method!!!, ", contrast_enhance
@@ -747,6 +746,15 @@ def load_image_data_monoprocessor(image_files, image_array, image_width, image_h
         
     if convert_format == "RGB":
         subimages = subimages / 256.0
+    if str(contrast_enhance).startswith("array_mean_std"):
+        _, mean, std = contrast_enhance.split("-")
+        mean = float(mean)
+        std = float(std)
+        print "Contrast enhancement directly on array. Fixing mean to %f and std to %f (approx)"%(mean, std)
+        print "Before: avg_min=", subimages.min(axis=1).mean(), "avg_max=", subimages.min(axis=1).max()
+        image_array_contrast_normalize_avg_std(subimages, mean=mean, std=std)
+        quit()
+
     t1 = time.time()
     if verbose:
         print num_images, " Images loaded in %0.3f ms"% ((t1-t0)*1000.0)
@@ -958,6 +966,14 @@ def load_multiple_image_data(unique_image_files_subset, act_im_num_indices, subi
             subimages[image_counter] = load_single_image_data(im_orig, im_params)
             image_counter += 1
 
+    if str(contrast_enhance).startswith("array_mean_std"):
+        _, mean, std = contrast_enhance.split("-")
+        mean = float(mean)
+        std = float(std)
+        print "Contrast enhancement directly on array. Fixing mean to %f and std to %f (approx)"%(mean, std)
+        print "Before: avg_min=", subimages.min(axis=1).mean(), "avg_max=", subimages.max(axis=1).mean()
+        image_array_contrast_normalize_avg_std(subimages, mean=mean, std=std)
+        
     queue.put((subset_indices, subimages))
 
 #Translations are given in original image coordinates
@@ -1164,9 +1180,9 @@ def contrast_enhance_image(im_rotated, x0, x1, y0, y1, obj_avg, obj_std, contras
             ex = "Incorrect method (unknown constant enhancement) %s"%contrast_enhance
             raise Exception(ex)
 
-    elif contrast_enhance is None:
+    elif (contrast_enhance is None) or str(contrast_enhance).startswith("array_mean_std"):
         im_contrasted = im_rotated
-        Delta_x_rotated = Delta_y_rotated = 0 #why this assignment???
+        ##Delta_x_rotated = Delta_y_rotated = 0 #why this assignment???
     else:
         ex = "Unknown contrast_enhance method!!!  %s"%contrast_enhance
         raise Exception(ex)
@@ -1555,7 +1571,7 @@ def rotate_improved(self, angle, resample=Image.NEAREST, expand=0, force_odd_out
     (a,b,c,d,e,f) = [ math.cos(angle_r), math.sin(angle_r), 0.0,
                  -math.sin(angle_r), math.cos(angle_r), 0.0]
         
-#    r_c_x, r_c_y = transform(center_x, center_y, (a,b,c,d,e,f))
+    #r_c_x, r_c_y = transform(center_x, center_y, (a,b,c,d,e,f))
        
     if expand: #Update size of output image
         o_pxs = []
@@ -1577,7 +1593,7 @@ def rotate_improved(self, angle, resample=Image.NEAREST, expand=0, force_odd_out
         out_width = im_width
         out_height = im_height
     
-#    print "rotation output: out_width=", out_width, "out_height=", out_height
+    #print "rotation output: out_width=", out_width, "out_height=", out_height
     o_center_x = (out_width-1) / 2.0
     o_center_y = (out_height-1) / 2.0
         
@@ -1588,80 +1604,14 @@ def rotate_improved(self, angle, resample=Image.NEAREST, expand=0, force_odd_out
     test_im_aff = self.transform((out_width, out_height), Image.AFFINE, matrix, resample)
     return test_im_aff
 
+def image_array_contrast_normalize_avg_std(subimages_array, mean=0.0, std=0.2):
+    subimages_array -= subimages_array.mean(axis=1).reshape((-1,1)) 
+    subimages_array /= (subimages_array.std(axis=1).reshape((-1,1)) / std) + 0.00000001 # std ends up being multiplied, division over zero is avoided
+    subimages_array += mean 
+    numpy.clip(subimages_array, 0.0, 255.0, subimages_array)
 
-
-
- 
-###EXAMPLE of Pink Noise Geration:
-#size = (128,64)
-#alphas = [8.0, 6.0, 5.0, 4.0, 
-#          3.0, 2.0, 1.5, 1.25, 
-#          1.0, 0.75, 0.5, 0.25]
-#amp = 25
-#mean = 127.5
-#plt.figure()
-#plt.suptitle("Pink Noise. Amplitude = k1 * 1 / f^(alpha/2), Energy = k2 * 1 / f^alpha")
-#
-#for i, alpha in enumerate(alphas):
-#    plt.subplot(3,4,i+1)
-#    filter = filter_colored_noise2D_imp(size, alpha) # 1/f^(3/2)
-#    yy =  random_filtered_noise2D(size, filter)
-#    yy4 = change_mean(yy, mean, amp)
-##    yy2 = (yy - yy.mean()) 
-##    yy3 = yy2 / yy2.std()
-##    yy4 = yy3 * amp + mean
-#    plt.imshow(yy4, vmin=0, vmax=255, aspect='auto', interpolation='nearest', origin='upper', cmap=mpl.pyplot.cm.gray)  
-#    plt.xlabel("Alpha=%0.1f, std=%0.1f, mean=%0.1f"%(alpha, amp, mean))
-#
-#plt.show()
-
-#plt.plot(numpy.arange(len(y1)), y1, "b.",)
-#plt.subplot(1,3,2)
-#plt.plot(numpy.arange(len(y2)), y2, "b.",)
-#plt.subplot(1,3,3)
-#plt.plot(numpy.arange(len(y3)), y3, "b.",)
-#plt.show()
-
-##EXAMPLE:
-
-#alpha = 1.0 #1.0 = pink noise, 0.0 = white noise
-#filter = filter_colored_noise1D(135, alpha)
-#size = (64,128)
-#filter = filter_colored_noise2D(size, alpha)
-#yy =  random_filtered_noise2D(size, filter)
-#
-#plt.figure()
-#plt.imshow(yy, aspect='auto', interpolation='nearest', origin='upper', cmap=mpl.pyplot.cm.gray)  
-#plt.draw()                                                                                                      
-#plt.show()
-#    
-#def powernoise1D(alpha, N):
-#    opt_randpow = False
-#    opt_normal = False
-#    N2 = N/2-1
-#    f = numpy.arange(2, (N2+1)+1 )
-#    A2 = 1.0/(f ** (alpha/2))
-#    if not opt_randpow:
-#        p2 = (numpy.random.random(N2)-0.5)*2*numpy.pi
-#        d2 = A2 * numpy.exp(1j * p2)
-#    else:
-#        p2 = numpy.random.random(N2) + i * numpy.random.random(N2)
-#        d2 = A2 * p2
-#    d2_conj_rev = numpy.conj(d2)[::-1]
-#
-#    print [1.0, ]
-#    print d2
-#    print 1.0/((N2+2.0)**alpha)
-#    print d2_conj_rev
-#      
-#    d = numpy.concatenate(([1.0,], d2, [1.0/((N2+2.0)**alpha),], d2_conj_rev))
-#    x = numpy.fft.ifft(d).real
-#    if opt_normal:
-#        x = ((x - x.min())/(x.max() - x.min()) - 0.5) * 2
-#    return x
-
-
-
+#import matplotlib as mpl
+#import matplotlib.pyplot as plt
 #plt.figure()
 #plt.subplot(1,3,1)
 #plt.plot(numpy.arange(len(y1)), y1, "b.",)
@@ -1702,13 +1652,6 @@ def rotate_improved(self, angle, resample=Image.NEAREST, expand=0, force_odd_out
 #plt.imshow(numpy.absolute(im2), aspect='auto', interpolation='nearest', origin='upper', cmap=mpl.pyplot.cm.gray)  
 #plt.draw()                                                                                                      
 #plt.show()
-
-
-
-
-
-
-
 
 
 

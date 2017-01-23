@@ -65,8 +65,8 @@ show_final_detection = False or True
 camera_enabled = False
 track_single_face= False
 pygame_display = False
-screen_width = 3648 # 640
-screen_height = 2736 #400
+screen_width = 640 # 640
+screen_height = 400 #400
 
 patch_overlap_sampling = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 2 patches
 patch_overlap_posx_posy = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 4 patches (twice overlap in each direction)
@@ -301,11 +301,15 @@ def pygame_sourface_to_PIL_image(im_pygame):
     return Image.frombytes('RGB', im_pygame.get_size(), imgstr, "raw")
     
 def image_array_contrast_normalize_avg_std(subimages_array, mean=0.0, std=0.2):
+    #print "XXXX ", subimages_array[0].mean(), subimages_array[0].std(), subimages_array[0].min(), subimages_array[0].max()
     subimages_array -= subimages_array.mean(axis=1).reshape((-1,1)) 
     subimages_array /= (subimages_array.std(axis=1).reshape((-1,1)) / std) + 0.00000001 # std ends up being multiplied, division over zero is avoided
+    #print "min =", subimages_array.min(axis=1).mean()
     subimages_array += mean 
+    #print "after mean addition: min =", subimages_array.min(axis=1).mean()
     numpy.clip(subimages_array, 0.0, 255.0, subimages_array)
-    
+    #print "after clip: min =", subimages_array.min(axis=1).mean()
+    #print "XXXX ", subimages_array[0].mean(), subimages_array[0].std(), subimages_array[0].min(), subimages_array[0].max()
 numpy.random.seed(12345600)
 
 verbose_pipeline = False
@@ -772,7 +776,7 @@ for im_number in image_numbers:
         database_current_image_coordinates = database_image_coordinates[im_number]
 #        print "db_im_c=", database_current_image_coordinates
     #TODO: sampling values should be a function of the image size!!!
-    detected_faces_eyes_confidences = []
+    
     
     #for now images has a single image
     print "I",
@@ -804,9 +808,11 @@ for im_number in image_numbers:
 
     #print images
     #quit()
+    
     im_height = images[0].size[1]
     im_width = images[0].size[0]
 
+    detected_faces_eyes_confidences = []
     t2 = time.time()
 #    benchmark.append(("Image loading a sampling value %f"%sampling_value, t2-t1))
 
@@ -853,8 +859,10 @@ for im_number in image_numbers:
 
             #posX_values = [tracked_face[0], tracked_face[0]+patch_sepx, tracked_face[0] - patch_sepx,            tracked_face[0], tracked_face[0] ]
             #posY_values = [tracked_face[1],            tracked_face[1],              tracked_face[1], tracked_face[1]+patch_sepy, tracked_face[1]-patch_sepy ]
-            posX_values = [tracked_face[0]]
-            posY_values = [tracked_face[1]]
+            posX_values = [tracked_face[0], tracked_face[0]+patch_sepx, tracked_face[0]-patch_sepx]
+            posY_values = [tracked_face[1],            tracked_face[1],            tracked_face[1]]
+            #posX_values = [tracked_face[0]]
+            #posY_values = [tracked_face[1]]
             
         elif adaptive_grid_coords: 
             #Patch width and height in image coordinates
@@ -1083,12 +1091,12 @@ for im_number in image_numbers:
                 subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height), interpolation_format)
                 if len(subimages) > 0:
                     subimages_arr = images_asarray(subimages)+0.0
-                    contrast_normalize = True
+                    contrast_normalize = True and False
                     if contrast_normalize:
-                        print "min and max image array intensities are:", subimages_arr.min(), subimages_arr.max()
-                        print "original mean and std are:", subimages_arr.mean(), subimages_arr.std()
-                        image_array_contrast_normalize_avg_std(subimages_arr, 127.5, 0.2*255)
-                        print "After contrast normalization min and max image array intensities are:", subimages_arr.min(), subimages_arr.max()
+                        #print "min and max image array intensities are:", subimages_arr.min(), subimages_arr.max()
+                        print "Orig mean=", subimages_arr.mean(), " and std=", subimages_arr.std(axis=1).mean(), " min=", subimages_arr.min(axis=1).mean(), " max=", subimages_arr.max(axis=1).mean()
+                        image_array_contrast_normalize_avg_std(subimages_arr, 137.5, 0.40*255)
+                        print "After contrast norm: mean=", subimages_arr.mean(), " and std=", subimages_arr.std(axis=1).mean(), " min=", subimages_arr.min(axis=1).mean(), " max=", subimages_arr.max(axis=1).mean()
                         #quit()
                 else:
                     subimages_arr = numpy.zeros((0,0))
@@ -1442,7 +1450,7 @@ for im_number in image_numbers:
         for i, box_coords in enumerate(curr_subimage_coordinates):
 
 #            detected_faces.append(compute_approximate_eye_coordinates(eye_coords, face_sampling=0.825))
-            eyes_coords_orig[i], eyesL_box_orig[i], eyesR_box_orig[i] = compute_approximate_eye_boxes_coordinates(box_coords, face_sampling=0.825)
+            eyes_coords_orig[i], eyesL_box_orig[i], eyesR_box_orig[i] = compute_approximate_eye_boxes_coordinates(box_coords, face_sampling=0.825/2.5*2.0)
             display_eye_boxes = True
             if display_eye_boxes and display_plots:
                 #left eye box
@@ -1457,8 +1465,9 @@ for im_number in image_numbers:
         #eyesL_coords = (eyesL_box_orig[:,0:2]+eyesL_box_orig[:,2:4])/2.0
         #eyesR_coords = (eyesR_box_orig[:,0:2]+eyesR_box_orig[:,2:4])/2.0
         
+        eye_xy_too_far_images = numpy.zeros(len(curr_image_indices), dtype=bool) 
         #Left eye only!
-        eyesL_box = eyesL_box_orig
+        eyesL_box = eyesL_box_orig + 0.0
         #print "eyesL_box=",eyesL_box
         for num_network in [num_networks-1, num_networks-2]:
             eyeL_subimages = extract_subimages_basic(images, curr_image_indices, eyesL_box, (eye_subimage_width, eye_subimage_height) )
@@ -1468,14 +1477,19 @@ for im_number in image_numbers:
                 #print "Network %d processed all subimages"%(num_networks-2)
                 reg_num_signals = classifiers[num_network].input_dim
                 avg_labels = classifiers[num_network].avg_labels 
+                print "avg_labels=",avg_labels
                 reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
-    
+                print "reg_out_crude:", reg_out
+                eye_xy_too_far_images |= numpy.abs(reg_out) >= 10.0 
+
+                #print "reg_out original=", reg_out
                 if network_types[num_network] == "EyeLX": #POS_X     
                     #print "EyeLX"  
                     eyes_box_width = numpy.abs(eyesL_box[:,2]-eyesL_box[:,0])
                     reg_out = reg_out * eyes_box_width / eye_regression_width
                     eyesL_box[:, 0] = eyesL_box[:, 0] - reg_out  #X0
-                    eyesL_box[:, 2] = eyesL_box[:, 2] - reg_out  #X1
+                    eyesL_box[:, 2] = eyesL_box[:, 2] - reg_out  #X1                    
+                    print "left eye, X reg_out final=", reg_out
                     ##TODO: Necessary?
                     ##eyesL_box[:, 0] = eyesL_box[:, 0].clip(0, im_width-1)
                     ##eyesL_box[:, 2] = eyesL_box[:, 2].clip(0, im_width-1)
@@ -1485,6 +1499,7 @@ for im_number in image_numbers:
                     reg_out = reg_out * eyes_box_height / eye_regression_height
                     eyesL_box[:, 1] = eyesL_box[:, 1] - reg_out  #Y0
                     eyesL_box[:, 3] = eyesL_box[:, 3] - reg_out  #Y1
+                    print "left eye, Y reg_out final=", reg_out
                     ##TODO: Necessary?
                     ##eyesL_box[:, 1] = eyesL_box[:, 1].clip(0, im_height-1)
                     ##eyesL_box[:, 3] = eyesL_box[:, 3].clip(0, im_height-1)
@@ -1509,13 +1524,15 @@ for im_number in image_numbers:
                 reg_num_signals = classifiers[num_network].input_dim
                 avg_labels = classifiers[num_network].avg_labels 
                 reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
-    
+                print "reg_out_crude:", reg_out
+                eye_xy_too_far_images |= numpy.abs(reg_out) >= 10.0 
                 if network_types[num_network] == "EyeLX": #POS_X     
                     #print "EyeLX"  
                     eyes_box_width = numpy.abs(eyesRhack_box[:,2]-eyesRhack_box[:,0])
-                    reg_out = reg_out * eyes_box_width / eye_regression_width
+                    reg_out = reg_out * eyes_box_width / eye_regression_width    
                     eyesRhack_box[:, 0] = eyesRhack_box[:, 0] + reg_out  #X0
                     eyesRhack_box[:, 2] = eyesRhack_box[:, 2] + reg_out  #X1
+                    print "right eye, X reg_out final=", reg_out
                 elif network_types[num_network] == "EyeLY": #POS_Y       
                     #print "EyeLY"  
                     eyes_box_height = numpy.abs(eyesRhack_box[:,3]-eyesRhack_box[:,1])
@@ -1524,6 +1541,7 @@ for im_number in image_numbers:
                     eyesRhack_box[:, 3] = eyesRhack_box[:, 3] - reg_out  #Y1
                     eyesRhack_box[:, 1] = eyesRhack_box[:, 1].clip(0, im_height-1)
                     eyesRhack_box[:, 3] = eyesRhack_box[:, 3].clip(0, im_height-1)
+                    print "right eye, Y reg_out final=", reg_out
                 else:
                     print "Unknown network type!", network_types[num_network]
                     quit()
@@ -1537,6 +1555,11 @@ for im_number in image_numbers:
         #Update both eye coordinates (first one was already updated anyway)
         eyesL_coords = (eyesL_box[:,0:2]+eyesL_box[:,2:4])/2.0
         eyesR_coords = (eyesR_box[:,0:2]+eyesR_box[:,2:4])/2.0
+
+        print "images discarded due to eye_xy_too_far:",  eye_xy_too_far_images.sum()
+        eyesL_coords= eyesL_coords[eye_xy_too_far_images==0]
+        eyesR_coords= eyesR_coords[eye_xy_too_far_images==0]
+        curr_subimage_coordinates = curr_subimage_coordinates[eye_xy_too_far_images==0,:]
 
         #This actually displays the found eyes
         display_eye_boxes = True            
@@ -1552,7 +1575,7 @@ for im_number in image_numbers:
 #                            subplot.plot([ab_x0, ab_x1, ab_x1, ab_x0, ab_x0], [ab_y0, ab_y0, ab_y1, ab_y1, ab_y0], "w")
 #                            #Left eye, right eye and face center
 #                            subplot.plot([ael_x, aer_x, afc_x], [ael_y, aer_y, afc_y], "wo")
-                             
+              
         for j, box_coords in enumerate(curr_subimage_coordinates):            
             eyes_coords = eyes_coords_orig[j]
             box_eyes_coords_confidence = numpy.array([box_coords[0], box_coords[1], box_coords[2], box_coords[3], eyesL_coords[j][0], eyesL_coords[j][1], eyesR_coords[j][0], eyesR_coords[j][1], curr_confidence[j]])                       

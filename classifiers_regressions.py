@@ -7,6 +7,24 @@ import numpy
 import mdp
 import patch_mdp
 
+def mean_average_error(ground_truth, regression, verbose=False):
+    """Computes a float value indicating the mean average error
+        both input lists/arrays must have the same length and float values
+    """
+    num = len(ground_truth)
+    if len(ground_truth) != len(regression):
+        ex = "ERROR in regression labels in mean_average_error: len(ground_truth)=%d != len(regression)=%d"%(len(ground_truth), len(regression))
+        print ex
+        raise Exception(ex)
+
+    d1 = numpy.array(ground_truth).flatten()
+    d2 = numpy.array(regression).flatten()
+    if verbose:
+        print "ground_truth=", d1
+        print "regression=", d2
+    mae = numpy.abs(d2-d1).mean()
+    return mae
+
 def remove_nans_from_array(array):
     ex = "Function obsolete, use the function array.nan_to_num"
     raise Exception(ex)
@@ -31,11 +49,11 @@ class GaussianApprox(object):
         square_distances = (diffs**2).sum(2)
         return square_distances.argmin(1)
 
-class ClosestDistanceClassifier(object):
+class ClosestDistanceClassifier(object): 
     def train(self, data, labels=None):
         self.n_classes = data.shape[0]
         self.vectorsM = data.copy()
-        if labels is None:
+        if labels == None:
             self.labels = numpy.array(range(self.n_classes))
         else:
             if isinstance(labels, numpy.ndarray):
@@ -53,6 +71,36 @@ class ClosestDistanceClassifier(object):
 #        diffs = data[:,numpy.newaxis,:].repeat(self.n_classes, axis=1) - self.vectorsM
         square_distances = (diffs**2).sum(axis=2)
         return square_distances.argmin(axis=1)
+
+
+
+class ClosestDistanceClassifierNew(object):
+    def train(self, data, labels=None):
+        self.n_classes = data.shape[0]
+        self.vectorsM = data.copy()
+        if labels == None:
+            self.labels = numpy.array(range(self.n_classes))
+        else:
+            if isinstance(labels, numpy.ndarray):
+                if labels.shape[0] != self.n_classes:
+                    ex = "Wrong number of labels: %d != %d n_classes"%(labels.shape[0], self.n_classes)
+                    raise Exception(ex)
+            else:
+                if len(labels) != self.n_classes:
+                    ex = "Wrong number of labels: %d != %d n_classes [2]"%(labels.shape[0], self.n_classes)
+                    raise Exception(ex)
+                print "labels=", labels
+                labels = numpy.array(labels)
+            self.labels = labels
+#       print "vectorsM=", self.vectorsM
+    def classifyNoMem(self, data):
+        closest = numpy.zeros(len(data))
+        for i, sample in enumerate(data):
+            diffs = sample[:,numpy.newaxis].repeat(self.n_classes, axis=1).swapaxes(0,1) - self.vectorsM
+            square_distances = (diffs**2).sum(axis=1)
+            closest[i] = square_distances.argmin()
+        return self.labels[closest.astype('int')]
+
     
 class ClosestVectorClassifier(object):
     def train(self, data, labels=None):
@@ -113,6 +161,7 @@ def blocker_computer(data, labels, classes = None, block_size=1, spacing=None, v
         means[i] = blocks[i].mean(axis=0)
     
     return means, blocks, b_labels, b_classes
+
 
 
 #This needs serious improvements!!!!
@@ -342,7 +391,7 @@ def correct_classif_rate(ground_truth, classified, verbose=False):
     """
     num = len(ground_truth)
     if len(ground_truth) != len(classified):
-        ex = "ERROR in class sizes, in correct_classif_rate"
+        ex = "ERROR in class sizes, in correct_classif_rate: len(ground_truth)=%d != len(classified)=%d"%(len(ground_truth), len(classified))
         print ex
         raise Exception(ex)
 

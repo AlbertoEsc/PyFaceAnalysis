@@ -12,13 +12,14 @@ from inversion import invert_exp_funcs2
 import inspect
 
 from histogram_equalization import *
+####from igsfa_node import SFANode_reduce_output_dim, f_residual
 
 #using the provided average and standard deviation
 def gauss_noise(x, avg, std):
     return numpy.random.normal(avg, std, x.shape)
 
 #Zero centered
-def additive_gauss_noise(x, avg, std):
+def additive_gauss_noise(x, std):
     return x + numpy.random.normal(0, std, x.shape)
 
 class RandomizedMaskNode(mdp.Node):
@@ -115,6 +116,7 @@ class GeneralExpansionNode(mdp.Node):
         x = numpy.zeros((1,n))
         for func in self.funcs:
             outx = func(x)
+            #print "outx= ", outx
             exp_dim += outx.shape[1]
         return exp_dim
     def output_sizes(self, n):
@@ -536,8 +538,8 @@ def display_node_eigenvalues(node, i, mode="All"):
         elif isinstance(node.nodes[0], mdp.nodes.IEVMNode):
             if node.nodes[0].use_sfa:
                 print "Node %d is a CloneLayer that contains an IEVMNode containing an SFA node with num_sfa_features_preserved=%d and d="%(i, node.nodes[0].num_sfa_features_preserved), node.nodes[0].sfa_node.d
-        elif isinstance(node.nodes[0], mdp.nodes.IEVMLRecNode):
-            print "Node %d is a CloneLayer that contains an IEVMLRecNode containing an SFA node with num_sfa_features_preserved=%d and d="%(i, node.nodes[0].num_sfa_features_preserved), node.nodes[0].sfa_node.d
+        elif isinstance(node.nodes[0], mdp.nodes.iGSFANode):
+            print "Node %d is a CloneLayer that contains an iGSFANode containing an SFA node with num_sfa_features_preserved=%d and d="%(i, node.nodes[0].num_sfa_features_preserved), node.nodes[0].sfa_node.d
         elif isinstance(node.nodes[0], mdp.nodes.PCANode):
             print "Node %d is a CloneLayer that contains a PCANode with d="%i, node.nodes[0].d
 
@@ -590,7 +592,7 @@ def display_node_eigenvalues(node, i, mode="All"):
                 else:
                     er = 'Unknown mode in display_eigenvalues, try "FirstNodeInLayer", "Average" or "All"'
                     raise Exception(er)
-        elif isinstance(node.nodes[0], mdp.nodes.IEVMLRecNode):
+        elif isinstance(node.nodes[0], mdp.nodes.iGSFANode):
             if mode == "Average":
                 evar_avg = 0.0
                 d_avg = 0.0
@@ -603,13 +605,13 @@ def display_node_eigenvalues(node, i, mode="All"):
                 d_avg /=  len(node.nodes)
                 evar_avg /=  len(node.nodes)
                 avg_num_sfa_features /=  len(node.nodes)
-                print "Node %d is a Layer that contains IEVMLRecNodes containing SFANodes with avg(num_sfa_features_preserved)=%f and avg(d)=%s and avg(evar)=%f"%(i,avg_num_sfa_features, str(d_avg), evar_avg)
+                print "Node %d is a Layer that contains iGSFANodes containing SFANodes with avg(num_sfa_features_preserved)=%f and avg(d)=%s and avg(evar)=%f"%(i,avg_num_sfa_features, str(d_avg), evar_avg)
             elif mode == "All":
-                print "Node %d is a Layer that contains IEVMLRecNodes:"%i
+                print "Node %d is a Layer that contains iGSFANodeRecNodes:"%i
                 for n in node.nodes:
-                    print "  IEVMLRecNode containing an SFANode with num_sfa_features_preserved=%f, d=%s and evar=%f"%(n.num_sfa_features_preserved, str(n.sfa_node.d), n.evar)
+                    print "  iGSFANode containing an SFANode with num_sfa_features_preserved=%f, d=%s and evar=%f"%(n.num_sfa_features_preserved, str(n.sfa_node.d), n.evar)
             elif mode == "FirstNodeInLayer":
-                print "Node %d is a Layer, and its first IEVMLRecNode"%i
+                print "Node %d is a Layer, and its first iGSFANode"%i
                 print "contains an SFANode with num_sfa_features_preserved)=%f, d=%s and evar=%f"%(node.nodes[0].num_sfa_features_preserved, str(node.nodes[0].sfa_node.d), node.nodes[0].evar)
             else:
                 er = 'Unknown mode in display_eigenvalues, try "FirstNodeInLayer", "Average" or "All"'
@@ -655,8 +657,8 @@ def display_node_eigenvalues(node, i, mode="All"):
     elif isinstance(node, mdp.nodes.IEVMNode):
         if node.use_sfa:
             print "Node %d is an IEVMNode containing an SFA node with num_sfa_features_preserved=%d and d="%(i, node.num_sfa_features_preserved), node.sfa_node.d
-    elif isinstance(node, mdp.nodes.IEVMLRecNode):
-        print "Node %d is an IEVMLRecNode containing an SFA node with num_sfa_features_preserved=%d and d="%(i, node.num_sfa_features_preserved), node.sfa_node.d
+    elif isinstance(node, mdp.nodes.iGSFANode):
+        print "Node %d is an iGSFANode containing an SFA node with num_sfa_features_preserved=%d and d="%(i, node.num_sfa_features_preserved), node.sfa_node.d
     elif isinstance(node, mdp.nodes.PCANode):
         print "Node %d is a PCANode with d=%s and evar=%f"%(i, str(node.d), node.explained_variance)
     else:
@@ -903,7 +905,7 @@ class SFAPCANode(mdp.Node):
 def data_variance(x):
     return ((x-x.mean(axis=0))**2).sum(axis=1).mean()
 
-def estimated_explained_var_linearly(x, y, x_test, y_test):
+def estimate_explained_var_linearly(x, y, x_test, y_test):
     x_test_app = approximate_linearly(x, y, y_test)
     
     explained_variance = compute_explained_var(x_test, x_test_app)
@@ -931,7 +933,7 @@ def sensivity_of_linearly_approximation(x, y):
     sens = (beta**2).sum(axis=1)
     return sens
 
-def estimated_explained_var_with_kNN(x, y, max_num_samples_for_ev = None, max_test_samples_for_ev=None, k=1, ignore_closest_match = False, operation="average"):
+def estimate_explained_var_with_kNN(x, y, max_num_samples_for_ev = None, max_test_samples_for_ev=None, k=1, ignore_closest_match = False, operation="average"):
     num_samples = x.shape[0]
     indices_all_x = numpy.arange(x.shape[0])
 
@@ -2055,35 +2057,25 @@ class IEVMNode(mdp.Node):
         
         return x
 
-#Computes output errors dimension by dimension for a single sample: y - node.execute(x_app)
-#The library fails when dim(x_app) > dim(y), thus filling of x_app with zeros is recommended
-def f_residual(x_app_i, node, y_i):
-    #print "%",
-    #print "f_residual: x_appi_i=", x_app_i, "node.execute=", node.execute, "y_i=", y_i
-    res_long = numpy.zeros_like(y_i)
-    y_i = y_i.reshape((1,-1))
-    y_i_short = y_i[:,0:node.output_dim]
-#    x_app_i = x_app_i[0:node.input_dim]
-    res = (y_i_short - node.execute(x_app_i.reshape((1,-1)))).flatten()
-    #print "res_long=", res_long, "y_i=", y_i, "res", res
-    res_long[0:len(res)]=res
-#    res = (y_i - node.execute(x_app_i))
-    #print "returning resudial res=", res
-    return res_long
+# # # #Computes output errors dimension by dimension for a single sample: y - node.execute(x_app)
+# # # #The library fails when dim(x_app) > dim(y), thus filling of x_app with zeros is recommended
+# # # def f_residual(x_app_i, node, y_i):
+# # #     #print "%",
+# # #     #print "f_residual: x_appi_i=", x_app_i, "node.execute=", node.execute, "y_i=", y_i
+# # #     res_long = numpy.zeros_like(y_i)
+# # #     y_i = y_i.reshape((1,-1))
+# # #     y_i_short = y_i[:,0:node.output_dim]
+# # # #    x_app_i = x_app_i[0:node.input_dim]
+# # #     res = (y_i_short - node.execute(x_app_i.reshape((1,-1)))).flatten()
+# # #     #print "res_long=", res_long, "y_i=", y_i, "res", res
+# # #     res_long[0:len(res)]=res
+# # # #    res = (y_i - node.execute(x_app_i))
+# # #     #print "returning resudial res=", res
+# # #     return res_long
 
-def SFANode_force_output_dim(sfa_node, new_output_dim):
-    print "Updating output dimensionality of SFA node"
-    if new_output_dim > sfa_node.output_dim:
-        er = "Can only reduce output dimensionality of SFA node, not increase it"
-        raise Exception(er)
-    print "Before: sfa_node.d.shape=",sfa_node.d.shape, " sfa_node.sf.shape=",sfa_node.sf.shape, " sfa_node._bias.shape=",sfa_node._bias.shape
-    sfa_node.d = sfa_node.d[:new_output_dim]
-    sfa_node.sf = sfa_node.sf[:,:new_output_dim]
-    sfa_node._bias = sfa_node._bias[:new_output_dim]
-    sfa_node._output_dim = new_output_dim
-    print "After: sfa_node.d.shape=",sfa_node.d.shape, " sfa_node.sf.shape=",sfa_node.sf.shape, " sfa_node._bias.shape=",sfa_node._bias.shape
 
-#iGSFA node 
+
+#obsolete and replaced by igsfa_node.iGSFANode 
 #TODO: simplify this, remove experimental parts
 class IEVMLRecNode(mdp.Node):
 #     """Node implementing simple Incremental Explained Variance Maximization. 
@@ -2188,7 +2180,7 @@ class IEVMLRecNode(mdp.Node):
         if self.num_sfa_features_preserved > self.output_dim:
             self.num_sfa_features_preserved = self.output_dim
         
-        SFANode_force_output_dim(self.sfa_node, self.num_sfa_features_preserved)
+        SFANode_reduce_output_dim(self.sfa_node, self.num_sfa_features_preserved)
 
         #TODO: Make sure to adjust the matrix used by SFA to only consider num_sfa_features_preserved
         #self.num_sfa_features_preserved = 10
@@ -2628,7 +2620,7 @@ class SFAAdaptiveNLNode(mdp.Node):
         print "block_size =", block_size, ", train_mode =", train_mode
         print "x.shape=", x.shape, "self.starting_point=", self.starting_point  
 
-        #Remove mean before expansion
+        #TODO: Remove mean and normalize variance before expansion
 #        self.x_mean = x.mean(axis=0) 
 #        x_zm=x-self.x_mean
 
@@ -2794,7 +2786,7 @@ def cumulative_score(ground_truth, estimation, largest_error, integer_rounding=T
 
 ##################### GSFA functions/classes ################
 #Special purpose object to compute the covariance matrices used by SFA.
-from GSFA_node import CovDCovMatrix, GSFANode, ComputeCovDcovMatrixMixed, ComputeCovDcovMatrixSerial, ComputeCovDcovMatrixClustered, ComputeCovMatrix
+#from gsfa_node import CovDCovMatrix, GSFANode, ComputeCovDcovMatrixMixed, ComputeCovDcovMatrixSerial, ComputeCovDcovMatrixClustered, ComputeCovMatrix
 
 ######## Helper functions for parallel processing and CovDcovMatrices #########
 #This function appears to be obsolete
@@ -3009,3 +3001,39 @@ def compute_classification_performance(data_training, correct_classes_training, 
 
     return CR_expansion_training, CR_expansion_test
 
+
+
+def SFANode_reduce_output_dim(sfa_node, new_output_dim, verbose=False):
+    """ This function modifies an already trained SFA node (or GSFA node), 
+    reducing the number of preserved SFA features to new_output_dim features.
+    The modification takes place in place
+    """
+    if verbose:
+        print "Updating the output dimensionality of SFA node"
+    if new_output_dim > sfa_node.output_dim:
+        er = "Can only reduce output dimensionality of SFA node, not increase it"
+        raise Exception(er)
+    if verbose:
+        print "Before: sfa_node.d.shape=", sfa_node.d.shape, " sfa_node.sf.shape=",sfa_node.sf.shape, " sfa_node._bias.shape=",sfa_node._bias.shape
+    sfa_node.d = sfa_node.d[:new_output_dim]
+    sfa_node.sf = sfa_node.sf[:,:new_output_dim]
+    sfa_node._bias = sfa_node._bias[:new_output_dim]
+    sfa_node._output_dim = new_output_dim
+    if verbose:
+        print "After: sfa_node.d.shape=",sfa_node.d.shape, " sfa_node.sf.shape=",sfa_node.sf.shape, " sfa_node._bias.shape=",sfa_node._bias.shape
+
+#Computes output errors dimension by dimension for a single sample: y - node.execute(x_app)
+#The library fails when dim(x_app) > dim(y), thus filling of x_app with zeros is recommended
+def f_residual(x_app_i, node, y_i):
+    #print "%",
+    #print "f_residual: x_appi_i=", x_app_i, "node.execute=", node.execute, "y_i=", y_i
+    res_long = numpy.zeros_like(y_i)
+    y_i = y_i.reshape((1,-1))
+    y_i_short = y_i[:,0:node.output_dim]
+#    x_app_i = x_app_i[0:node.input_dim]
+    res = (y_i_short - node.execute(x_app_i.reshape((1,-1)))).flatten()
+    #print "res_long=", res_long, "y_i=", y_i, "res", res
+    res_long[0:len(res)]=res
+#    res = (y_i - node.execute(x_app_i))
+    #print "returning resudial res=", res
+    return res_long
