@@ -115,32 +115,47 @@ def compute_approximate_eye_coordinates(box_coordinates, face_sampling=0.825, le
     return numpy.array([eye_left_x, eye_y, eye_right_x, eye_y])
 
 #In addition to the eye coordinates, it gives two boxes containing the left and right eyes
-def compute_approximate_eye_boxes_coordinates(box_coordinates, face_sampling=0.825, leftscreen_on_left=True):
+def compute_approximate_eye_boxes_coordinates(box_coordinates, face_sampling=0.825, leftscreen_on_left=True, rot_angle=None):
     x0, y0, x1, y1 = box_coordinates
     fc_x = (x0+x1)/2.0
     fc_y = (y0+y1)/2.0
     
     if leftscreen_on_left == True:
-        factor = 1
+        mirroring_factor = 1
     else:
-        factor = -1
+        mirroring_factor = -1
+    
+    if rot_angle is None:
+        rot_angle = 0
+        
     #eye deltas with respect to the face center
-    eye_dx = 37.0/2.0 * numpy.abs(x1-x0)/ 128 / face_sampling
-    eye_dy = 42.0/2.0 * numpy.abs(y1-y0)/ 128 / face_sampling
+    eye_dx = 37.0/2.0 * numpy.abs(x1-x0) * 0.825 / 128 / face_sampling
+    eye_dy = 42.0/2.0 * numpy.abs(y1-y0) * 0.825 / 128 / face_sampling
     box_width = 64 * numpy.abs(x1-x0)/ 128 * 0.825 / face_sampling
     box_height = 64 * numpy.abs(y1-y0)/ 128 * 0.825 / face_sampling
+    rot_angle_radians = rot_angle * numpy.pi/180
+    
+
+    eyeR_dx_rotated = eye_dx * numpy.cos(rot_angle_radians) - eye_dy * numpy.sin(rot_angle_radians)
+    eyeR_dy_rotated = eye_dy * numpy.cos(rot_angle_radians) + eye_dx * numpy.sin(rot_angle_radians)
+    eyeL_dx_rotated = (-1 * eye_dx) * numpy.cos(rot_angle_radians) - eye_dy * numpy.sin(rot_angle_radians)
+    eyeL_dy_rotated = eye_dy * numpy.cos(rot_angle_radians) + (-1 * eye_dx) * numpy.sin(rot_angle_radians)
         
-    eye_left_x = fc_x - factor*eye_dx
-    eye_right_x = fc_x + factor*eye_dx
-    eye_y = fc_y - eye_dy
-    box_y0 = eye_y - box_height/2.0
-    box_y1 = eye_y + box_height/2.0
+    eye_left_x = fc_x + mirroring_factor * eyeL_dx_rotated
+    eye_right_x = fc_x + mirroring_factor * eyeR_dx_rotated
+    eye_left_y = fc_y - eyeL_dy_rotated
+    eye_right_y = fc_y - eyeR_dy_rotated
     box_left_x0 = eye_left_x - box_width/2.0
     box_left_x1 = eye_left_x + box_width/2.0
     box_right_x0 = eye_right_x - box_width/2.0
     box_right_x1 = eye_right_x + box_width/2.0
-
-    return numpy.array([eye_left_x, eye_y, eye_right_x, eye_y]), numpy.array([box_left_x0, box_y0, box_left_x1, box_y1]), numpy.array([box_right_x0, box_y0, box_right_x1, box_y1])
+    box_left_y0 = eye_left_y - box_height/2.0
+    box_left_y1 = eye_left_y + box_height/2.0
+    box_right_y0 = eye_right_y - box_height/2.0
+    box_right_y1 = eye_right_y + box_height/2.0
+    
+    # [coordinates of both eyes], [left eye box], [right eye box] 
+    return numpy.array([eye_left_x, eye_left_y, eye_right_x, eye_right_y]), numpy.array([box_left_x0, box_left_y0, box_left_x1, box_left_y1]), numpy.array([box_right_x0, box_right_y0, box_right_x1, box_right_y1])
 
 #Face midpoint is the average of the point between the eyes and the mouth
 def compute_face_midpoint(eye_left_x, eye_left_y, eye_right_x, eye_right_y, mouth_x, mouth_y):
@@ -1310,7 +1325,7 @@ for im_number in image_numbers:
                     #Left eye, right eye and face center
                     #subplot.plot([el_x, er_x, fc_x], [el_y, er_y, fc_y], "ro")
                     subplot.plot([el_x, er_x, fc_x], [el_y, er_y, fc_y], "ro")
-
+                    
             
             #For each face on the image,now there is only one
             #For each remaining image patch
@@ -1441,7 +1456,7 @@ for im_number in image_numbers:
             tmp_subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height) )
             for i in range(len(tmp_subimages)):
                 print "saving patch"
-                tmp_subimages[i].save("saved_patches/patch_im%03d_PAngle%f.jpg"%(i,curr_angles[i]))
+                tmp_subimages[i].save("saved_patches/patch_im%+03d_PAngle%f.jpg"%(i,curr_angles[i]))
 
 #TODO: POSITION OF EYES SHOULD NOW BE ROTATED ACCORDING TO FACE ANGLE IN PLANE
         eyes_coords_orig = numpy.zeros((len(curr_subimage_coordinates), 4))
@@ -1450,27 +1465,44 @@ for im_number in image_numbers:
         for i, box_coords in enumerate(curr_subimage_coordinates):
 
 #            detected_faces.append(compute_approximate_eye_coordinates(eye_coords, face_sampling=0.825))
-            eyes_coords_orig[i], eyesL_box_orig[i], eyesR_box_orig[i] = compute_approximate_eye_boxes_coordinates(box_coords, face_sampling=0.825/2.5*2.0)
+            eyes_coords_orig[i], eyesL_box_orig[i], eyesR_box_orig[i] = compute_approximate_eye_boxes_coordinates(box_coords, face_sampling=0.825*2.0/2.5, rot_angle=curr_angles[i]) 
+            ##eyes_coords_orig[i][1] += 15 #FOR DEBUGING ONLY!!!
+            ##eyes_coords_orig[i][3] += 15
+            ##eyesL_box_orig[i][1] += 15
+            ##eyesL_box_orig[i][3] += 15
+            ##eyesR_box_orig[i][1] += 15
+            ##eyesR_box_orig[i][3] += 15
+            
             display_eye_boxes = True
-            if display_eye_boxes and display_plots:
+            if display_eye_boxes and display_plots and subplot != None:
                 #left eye box
                 bel_x0, bel_y0, bel_x1, bel_y1 =  eyesL_box_orig[i]
-                if subplot != None:
-                    subplot.plot([bel_x0, bel_x1, bel_x1, bel_x0, bel_x0], [bel_y0, bel_y0, bel_y1, bel_y1, bel_y0], "b", linewidth=1.5)
+                subplot.plot([bel_x0, bel_x1, bel_x1, bel_x0, bel_x0], [bel_y0, bel_y0, bel_y1, bel_y1, bel_y0], "b", linewidth=1.5)
                 #right eye box
-#                ber_x0, ber_y0, ber_x1, ber_y1 =  eyesR_box_orig[i]
-#                subplot.plot([ber_x0, ber_x1, ber_x1, ber_x0, ber_x0], [ber_y0, ber_y0, ber_y1, ber_y1, ber_y0], "b")
+                ber_x0, ber_y0, ber_x1, ber_y1 =  eyesR_box_orig[i]
+                subplot.plot([ber_x0, ber_x1, ber_x1, ber_x0, ber_x0], [ber_y0, ber_y0, ber_y1, ber_y1, ber_y0], "b")
+                el_x, el_y, er_x, er_y = eyes_coords_orig[i]
+                subplot.plot([el_x, er_x], [el_y, er_y], "or")
+
  
         #Later the boxes are updated, and this coordinates change. TODO: UNDERSTAND NEXT TWO LINES, NEEDED?
         #eyesL_coords = (eyesL_box_orig[:,0:2]+eyesL_box_orig[:,2:4])/2.0
         #eyesR_coords = (eyesR_box_orig[:,0:2]+eyesR_box_orig[:,2:4])/2.0
         
+        ####curr_angles = curr_angles * 0.0 #DEBUGG!!!
+        
         eye_xy_too_far_images = numpy.zeros(len(curr_image_indices), dtype=bool) 
         #Left eye only!
-        eyesL_box = eyesL_box_orig + 0.0
+        eyesL_box = eyesL_box_orig + 0.0 #FOR DEBUG ONLY!!!
         #print "eyesL_box=",eyesL_box
+        eyeL_subimages = extract_subimages_rotate(images, curr_image_indices, eyesL_box, -1*curr_angles, (eye_subimage_width, eye_subimage_height), interpolation_format)
+        debug = True and False
+        if debug:
+            for i in range(len(eyeL_subimages)):
+                print "saving eyeL patch"
+                eyeL_subimages[i].save("saved_patches/eyeL_patch_im%+03d_PAngle%f.jpg"%(i,curr_angles[i]))       
+
         for num_network in [num_networks-1, num_networks-2]:
-            eyeL_subimages = extract_subimages_basic(images, curr_image_indices, eyesL_box, (eye_subimage_width, eye_subimage_height) )
             if len(eyeL_subimages) > 0:
                 subimages_arr = images_asarray(eyeL_subimages)+0.0
                 sl = networks[num_network].execute(subimages_arr, benchmark=benchmark)    
@@ -1480,43 +1512,56 @@ for im_number in image_numbers:
                 print "avg_labels=",avg_labels
                 reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
                 print "reg_out_crude:", reg_out
-                eye_xy_too_far_images |= numpy.abs(reg_out) >= 10.0 
+                eye_xy_too_far_images |= numpy.abs(reg_out) >= 8.0 
 
                 #print "reg_out original=", reg_out
                 if network_types[num_network] == "EyeLX": #POS_X     
                     #print "EyeLX"  
                     eyes_box_width = numpy.abs(eyesL_box[:,2]-eyesL_box[:,0])
-                    reg_out = reg_out * eyes_box_width / eye_regression_width
-                    eyesL_box[:, 0] = eyesL_box[:, 0] - reg_out  #X0
-                    eyesL_box[:, 2] = eyesL_box[:, 2] - reg_out  #X1                    
-                    print "left eye, X reg_out final=", reg_out
+                    reg_out_x = reg_out * eyes_box_width / eye_regression_width
                     ##TODO: Necessary?
                     ##eyesL_box[:, 0] = eyesL_box[:, 0].clip(0, im_width-1)
                     ##eyesL_box[:, 2] = eyesL_box[:, 2].clip(0, im_width-1)
                 elif network_types[num_network] == "EyeLY": #POS_Y       
                     #print "EyeLY"  
                     eyes_box_height = numpy.abs(eyesL_box[:,3]-eyesL_box[:,1])
-                    reg_out = reg_out * eyes_box_height / eye_regression_height
-                    eyesL_box[:, 1] = eyesL_box[:, 1] - reg_out  #Y0
-                    eyesL_box[:, 3] = eyesL_box[:, 3] - reg_out  #Y1
-                    print "left eye, Y reg_out final=", reg_out
+                    reg_out_y = reg_out * eyes_box_height / eye_regression_height
                     ##TODO: Necessary?
                     ##eyesL_box[:, 1] = eyesL_box[:, 1].clip(0, im_height-1)
                     ##eyesL_box[:, 3] = eyesL_box[:, 3].clip(0, im_height-1)
                 else:
                     print "Unknown network type! (expecting either EyeLX or EyeLY)", network_types[num_network]
                     quit()
+        
+        if len(eyeL_subimages) > 0:
+            rot_angle_radian = -1 * curr_angles * numpy.pi/180
+            eyesL_dx = reg_out_x * numpy.cos(rot_angle_radian) - reg_out_y * numpy.sin(rot_angle_radian) 
+            eyesL_dy = reg_out_y * numpy.cos(rot_angle_radian) + reg_out_x * numpy.sin(rot_angle_radian) 
+
+            eyesL_box[:, 0] = eyesL_box[:, 0] - eyesL_dx  #X0
+            eyesL_box[:, 2] = eyesL_box[:, 2] - eyesL_dx #X1                    
+            ###print "left eye, X reg_out final=", reg_out
+            eyesL_box[:, 1] = eyesL_box[:, 1] - eyesL_dy  #Y0
+            eyesL_box[:, 3] = eyesL_box[:, 3] - eyesL_dy  #Y1
+            ###print "left eye, Y reg_out final=", reg_out
+                    
         print "LE found *********************************************************************"
         
         #Right eye only!
         #Swap horizontal coordinates
-        eyesRhack_box = eyesR_box_orig + 0.0
+        eyesRhack_box = eyesR_box_orig + 0.0 #### FOR DEBUG ONLY
         eyesRhack_box[:,0] = eyesR_box_orig[:,2]
         eyesRhack_box[:,2] = eyesR_box_orig[:,0]
         
         #print "eyesRhack_box=",eyesRhack_box
+        eyeR_subimages = extract_subimages_rotate(images, curr_image_indices, eyesRhack_box, -1*curr_angles, (eye_subimage_width, eye_subimage_height), interpolation_format)
+        debug = True and False
+        if debug:
+            for i in range(len(eyeR_subimages)):
+                print "saving eyeR patch"
+                eyeR_subimages[i].save("saved_patches/eyeRRpatch_im%+03d_PAngle%f.jpg"%(i,curr_angles[i])) 
         for num_network in [num_networks-1, num_networks-2]:
-            eyeR_subimages = extract_subimages_basic(images, curr_image_indices, eyesRhack_box, (eye_subimage_width, eye_subimage_height) )
+            #eyeR_subimages = extract_subimages_basic(images, curr_image_indices, eyesRhack_box, (eye_subimage_width, eye_subimage_height) )
             if len(eyeR_subimages) > 0:
                 subimages_arr = images_asarray(eyeR_subimages)+0.0
                 sl = networks[num_network].execute(subimages_arr, benchmark=benchmark)    
@@ -1525,27 +1570,33 @@ for im_number in image_numbers:
                 avg_labels = classifiers[num_network].avg_labels 
                 reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
                 print "reg_out_crude:", reg_out
-                eye_xy_too_far_images |= numpy.abs(reg_out) >= 10.0 
+                eye_xy_too_far_images |= numpy.abs(reg_out) >= 8.0 
                 if network_types[num_network] == "EyeLX": #POS_X     
                     #print "EyeLX"  
                     eyes_box_width = numpy.abs(eyesRhack_box[:,2]-eyesRhack_box[:,0])
-                    reg_out = reg_out * eyes_box_width / eye_regression_width    
-                    eyesRhack_box[:, 0] = eyesRhack_box[:, 0] + reg_out  #X0
-                    eyesRhack_box[:, 2] = eyesRhack_box[:, 2] + reg_out  #X1
-                    print "right eye, X reg_out final=", reg_out
+                    reg_out_x = reg_out * eyes_box_width / eye_regression_width    
                 elif network_types[num_network] == "EyeLY": #POS_Y       
                     #print "EyeLY"  
                     eyes_box_height = numpy.abs(eyesRhack_box[:,3]-eyesRhack_box[:,1])
-                    reg_out = reg_out * eyes_box_height / eye_regression_height
-                    eyesRhack_box[:, 1] = eyesRhack_box[:, 1] - reg_out  #Y0
-                    eyesRhack_box[:, 3] = eyesRhack_box[:, 3] - reg_out  #Y1
-                    eyesRhack_box[:, 1] = eyesRhack_box[:, 1].clip(0, im_height-1)
-                    eyesRhack_box[:, 3] = eyesRhack_box[:, 3].clip(0, im_height-1)
+                    reg_out_y = reg_out * eyes_box_height / eye_regression_height
                     print "right eye, Y reg_out final=", reg_out
                 else:
                     print "Unknown network type!", network_types[num_network]
                     quit()
         print "RE found *********************************************************************"
+
+        if len(eyeL_subimages) > 0:
+            rot_angle_radian = curr_angles * numpy.pi/180
+            eyesR_dx = reg_out_x * numpy.cos(rot_angle_radian) - reg_out_y * numpy.sin(rot_angle_radian) 
+            eyesR_dy = reg_out_y * numpy.cos(rot_angle_radian) + reg_out_x * numpy.sin(rot_angle_radian) 
+            
+            eyesRhack_box[:, 0] = eyesRhack_box[:, 0] + eyesR_dx  #X0
+            eyesRhack_box[:, 2] = eyesRhack_box[:, 2] + eyesR_dx  #X1
+            print "right eye, X reg_out final=", reg_out
+            eyesRhack_box[:, 1] = eyesRhack_box[:, 1] - eyesR_dy  #Y0
+            eyesRhack_box[:, 3] = eyesRhack_box[:, 3] - eyesR_dy  #Y1
+        #eyesRhack_box[:, 1] = eyesRhack_box[:, 1].clip(0, im_height-1)
+        #eyesRhack_box[:, 3] = eyesRhack_box[:, 3].clip(0, im_height-1)
 
         #Undo horizontal swap of coordinates
         eyesR_box = eyesRhack_box + 0.0
@@ -1556,10 +1607,12 @@ for im_number in image_numbers:
         eyesL_coords = (eyesL_box[:,0:2]+eyesL_box[:,2:4])/2.0
         eyesR_coords = (eyesR_box[:,0:2]+eyesR_box[:,2:4])/2.0
 
-        print "images discarded due to eye_xy_too_far:",  eye_xy_too_far_images.sum()
-        eyesL_coords= eyesL_coords[eye_xy_too_far_images==0]
-        eyesR_coords= eyesR_coords[eye_xy_too_far_images==0]
-        curr_subimage_coordinates = curr_subimage_coordinates[eye_xy_too_far_images==0,:]
+        discard_too_far_images = False or True
+        if discard_too_far_images:
+            print "images discarded due to eye_xy_too_far:",  eye_xy_too_far_images.sum()
+            eyesL_coords= eyesL_coords[eye_xy_too_far_images==0]
+            eyesR_coords= eyesR_coords[eye_xy_too_far_images==0]
+            curr_subimage_coordinates = curr_subimage_coordinates[eye_xy_too_far_images==0,:]
 
         #This actually displays the found eyes
         display_eye_boxes = True            
