@@ -1,6 +1,6 @@
 19
 40 20 22.5 0.694 0.981 64 64 128 128
-10 10 0.675 0.975 32 32 64 64
+8 8 0.675 0.975 64 64 64 64
 Disc1
 JustFlowFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_1468510885.pckl
 GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_NetH1468510885_CFSlowH3cd58ebeae22a263c87e2e99bc3fc907_NumSig009.pckl
@@ -53,8 +53,8 @@ Disc9
 JustFlowFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_1470325647.pckl
 GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameFaceCentering2. Dx 48, Dy 24, Da 27000, Dsampling 187_NetH1470325647_CFSlowHd4bf80449cb1a9fd03f705100db3b86a_NumSig009.pckl
 EyeLX
-JustFlowREyePosXY Dx in (-12, 12) Dy in (-12, 12), sampling in (202, 210)_1485198673.pckl
-GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameREyePosXY Dx in (-12, 12) Dy in (-12, 12), sampling in (202, 210)_NetH1485198673_CFSlowH1a6b80a104a0518cb1416216894b8f66_NumSig010PosX.pckl
+JustFlowREyePosXY Dx in (-8, 8) Dy in (-8, 8), sampling in (232, 241)_1486394558.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameREyePosXY Dx in (-8, 8) Dy in (-8, 8), sampling in (232, 241)_NetH1486394558_CFSlowH1753ddf9d792a48805ca240ad064e7fd_NumSig010_PosX.pckl
 EyeLY
-JustFlowREyePosXY Dx in (-12, 12) Dy in (-12, 12), sampling in (202, 210)_1485198673.pckl
-GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameREyePosXY Dx in (-12, 12) Dy in (-12, 12), sampling in (202, 210)_NetH1485198673_CFSlowH1a6b80a104a0518cb1416216894b8f66_NumSig010PosY.pckl
+JustFlowREyePosXY Dx in (-8, 8) Dy in (-8, 8), sampling in (232, 241)_1486394558.pckl
+GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameREyePosXY Dx in (-8, 8) Dy in (-8, 8), sampling in (232, 241)_NetH1486394558_CFSlowH1753ddf9d792a48805ca240ad064e7fd_NumSig010_PosY.pckl
