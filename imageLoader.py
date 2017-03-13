@@ -380,10 +380,16 @@ def load_image_data_monoprocessor(image_files, image_array, image_width, image_h
             #print "Loading unique image", image_file
             if image_array is None:
                 im_orig = Image.open(image_file)   
-            else:
-    #                print "image_file=",image_file
-    #                print "image_array=",image_array
+            elif isinstance(image_array, PIL.Image.Image):
+                print "considering image_array as PIL.Image.Image"
+                im_orig = image_array
+            elif isinstance(image_array, numpy.ndarray):
+                print "considering image_array as ndarray"
                 im_orig = scipy.misc.toimage(image_array[image_file], mode='L')
+            else:
+                er = "unknown type of image_array:" + str(type(image_array))
+                raise Exception(er)
+
             for act_im_num in act_im_num_indices[image_file]:              
                 #print "Computing image for act_im_num:", act_im_num
 

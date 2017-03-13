@@ -31,7 +31,8 @@ import SystemParameters
 from imageLoader import *
 import classifiers_regressions as classifiers
 import network_builder
-import time
+import benchmarking
+#import time
 #from matplotlib.ticker import MultipleLocator
 import copy
 import string
@@ -73,12 +74,21 @@ patch_overlap_posx_posy = 1.0 #1.0 = no overlap, 2.0 each image region belongs t
 tolerance_scale_deviation = 1.1 #1.4 # 1.2  #WARNING!!! 
 tolerance_angle_deviation = 1.1
 tolerance_posxy_deviation = 1.1 #1.0 = no tolerance besides invariance originally learned
-                    
-interpolation_formats = [Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
+
+estimate_age = True
+estimate_gender = True
+estimate_race = True
+
+image_prescaling = True #and False
+prescale_size = 800
+prescale_factor = 1.0
+
+interpolation_formats = [Image.NEAREST]*10 #[Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
                     
 #sys.path.append("/home/escalafl/workspace/hiphi/src/hiphi/utils")
 #list holding the benchmark information with entries: ("description", time as float in seconds)
-benchmark=[]
+
+benchmark = benchmarking.Benchmark(enabled=False)
 
 pipeline_base_dir = "Pipelines"
 #images_base_dir = "/local/escalafl/Alberto/ImagesFaceDetection"
@@ -115,7 +125,7 @@ def compute_approximate_eye_coordinates(box_coordinates, face_sampling=0.825, le
     return numpy.array([eye_left_x, eye_y, eye_right_x, eye_y])
 
 #In addition to the eye coordinates, it gives two boxes containing the left and right eyes
-def compute_approximate_eye_boxes_coordinates(box_coordinates, face_sampling=0.825, eye_sampling=0.94875, leftscreen_on_left=True, rot_angle=None):
+def compute_approximate_eye_boxes_coordinates(box_coordinates, face_sampling=0.825, eye_sampling=2.3719, leftscreen_on_left=True, rot_angle=None):
     x0, y0, x1, y1 = box_coordinates
     fc_x = (x0+x1)/2.0
     fc_y = (y0+y1)/2.0
@@ -128,11 +138,16 @@ def compute_approximate_eye_boxes_coordinates(box_coordinates, face_sampling=0.8
     if rot_angle is None:
         rot_angle = 0
         
-    #eye deltas with respect to the face center
-    eye_dx = 37.0/2.0 * numpy.abs(x1-x0) / 0.825 / 128 # *0.825 ### 37.0/2.0 * numpy.abs(x1-x0) * 0.825 / 128 / face_sampling
-    eye_dy = 42.0/2.0 * numpy.abs(y1-y0) / 0.825 / 128 
-    box_width = 64 * numpy.abs(x1-x0) / 128 * eye_sampling / face_sampling # 64 * numpy.abs(x1-x0) / 128 * eye_sampling / face_sampling
-    box_height = 64 * numpy.abs(y1-y0) / 128 * eye_sampling / face_sampling  
+    #eye deltas with respect to the face center in original image coordinates
+    eye_dx = (37.0/2.0) * (numpy.abs(x1-x0) / 64.0) / (2 * 0.825)  # *0.825 ### 37.0/2.0 * numpy.abs(x1-x0) * 0.825 / 128 / face_sampling
+    eye_dy = (42.0/2.0) * (numpy.abs(y1-y0) / 64.0) / (2 * 0.825) 
+    
+    (numpy.abs(x1-x0) / 64.0) * 64 * (2 *0.825)
+
+    box_width = (numpy.abs(x1-x0) / (64.0 * 2 * 0.825)) * (64 * 2.3719 / 2) # 64 * numpy.abs(x1-x0) / 128 * eye_sampling / face_sampling
+    box_height = box_width + 0.0
+    #box_width = 64 * numpy.abs(x1-x0) / 128 * eye_sampling / face_sampling # 64 * numpy.abs(x1-x0) / 128 * eye_sampling / face_sampling
+    #box_height = 64 * numpy.abs(y1-y0) / 128 * eye_sampling / face_sampling  
     rot_angle_radians = rot_angle * numpy.pi / 180
 
     eyeR_dx_rotated = eye_dx * numpy.cos(rot_angle_radians) - eye_dy * numpy.sin(rot_angle_radians)
@@ -209,6 +224,7 @@ def purgueDetectedFacesEyesConfidence(detected_faces_eyes_confidences, weight_co
         
         #print "ordering=", ordering
         #print "ordered confidences =", detected_faces_eyes_confidences[:,-1]
+        print "sorted detected_faces_eyes_confidences", detected_faces_eyes_confidences[:,-1]
         print "sorted weighted confidences:", weighted_confidences[ordering]
         
         unique_faces_eyes_confidences = []
@@ -324,6 +340,31 @@ def image_array_contrast_normalize_avg_std(subimages_array, mean=0.0, std=0.2):
     numpy.clip(subimages_array, 0.0, 255.0, subimages_array)
     #print "after clip: min =", subimages_array.min(axis=1).mean()
     #print "XXXX ", subimages_array[0].mean(), subimages_array[0].std(), subimages_array[0].min(), subimages_array[0].max()
+
+def map_gender_labels_to_strings(gender_label_array):
+    strings = []
+    for label in gender_label_array:
+        if label == -1:
+            strings.append("Male")
+        elif label == 1:
+            strings.append("Female")
+        else:
+            er = "Unrecognized label: "+str(label)
+            raise Exception(er)
+    return strings
+
+def map_binary_race_labels_to_strings(race_label_array):
+    strings = []
+    for label in race_label_array:
+        if label == 0:
+            strings.append("Black")
+        elif label == 1:
+            strings.append("White")
+        else:
+            er = "Unrecognized label: "+str(label)
+            raise Exception(er)
+    return strings
+
 numpy.random.seed(12345600)
 
 verbose_pipeline = False
@@ -359,7 +400,7 @@ pipeline_filename = pipeline_filenames[selected_pipeline]
 
 enable_eyes = True
 
-t0 = time.time()
+benchmark.update_start_time()
 
 pipeline_file = open(pipeline_filename, "rb")
 
@@ -368,6 +409,7 @@ if verbose_pipeline:
     print "Pipeline contains %d network/classifier pairs"%num_networks
 #num_networks = 1
 
+#The first line describes the face detection networks
 tmp_string = pipeline_file.readline()
 tmp_strings = string.split(tmp_string, " ")
 net_Dx = int(tmp_strings[0])
@@ -387,6 +429,7 @@ subimage_height = int(tmp_strings[6])
 regression_width = int(tmp_strings[7])
 regression_height = int(tmp_strings[8])
 
+#The second line describes the eye detection networks
 tmp_string = pipeline_file.readline()
 tmp_strings = string.split(tmp_string, " ")
 eye_Dx = int(tmp_strings[0])
@@ -405,6 +448,19 @@ eye_regression_width = int(tmp_strings[6])
 eye_regression_height = int(tmp_strings[7])
 
 #regression_width = regression_height = 128 #Regression data assumes subimage has this size
+
+#The third line describes the age estimation network
+tmp_string = pipeline_file.readline()
+tmp_strings = string.split(tmp_string, " ")
+age_Dx = int(tmp_strings[0])
+age_Dy = int(tmp_strings[1])
+age_mins = float(tmp_strings[2])
+age_maxs = float(tmp_strings[3])
+age_subimage_width = int(tmp_strings[4]) #Size of image patches
+age_subimage_height = int(tmp_strings[5])
+age_regression_width = int(tmp_strings[6]) #Original size of image patches, with original scale of labels 
+age_regression_height = int(tmp_strings[7])
+
 
 network_types = []
 network_filenames = []
@@ -443,8 +499,7 @@ for classifier_filename in classifier_filenames:
     classifier = cache_obj.load_obj_from_cache(None, base_dir=classifiers_base_dir, base_filename=classifier_filename, verbose=True) 
     classifiers.append(classifier)
 
-t1 = time.time()
-benchmark.append(("Network and Classifier loading", t1-t0))
+benchmark.add_task_from_previous_time("Loading of all networks and classifiers")
 
 #if command_line_interface:
 #    load_FRGC_images=False
@@ -527,7 +582,8 @@ if command_line_interface:
                                                         "coordinates_filename=", "true_coordinates_file=", "skip_existing_output=", "write_results=", 
                                                         "adaptive_grid_scale=", "adaptive_grid_coords=", "save_patches=","network_figures_together=", 
                                                         "last_cut_off_face=", "cut_offs_face=", "write_age_gender_confidence=", "show_final_detection=",
-                                                        "camera_enabled=", "track_single_face=", "pygame_display=" ])
+                                                        "camera_enabled=", "track_single_face=", "pygame_display=", "estimate_age_race_gender=",
+                                                        "image_prescaling=" ])
             files_set=False
             print "opts=", opts
             print "args=", args
@@ -623,6 +679,12 @@ if command_line_interface:
                 elif opt in ('--pygame_display'):
                     pygame_display = bool(int(arg))
                     print "Setting pygame_display to", pygame_display  
+                elif opt in ('--estimate_age_race_gender'):
+                    estimate_age = estimate_race = estimate_gender = bool(int(arg))
+                    print "Setting estimate_age,estimate_race, estimate_gender to", estimate_age, estimate_race, estimate_gender  
+                elif opt in ('--image_prescaling'):
+                    image_prescaling = bool(int(arg))
+                    print "Setting image_prescaling to", image_prescaling
                 else:
                     print "Option not handled:", opt
 
@@ -649,6 +711,7 @@ else: #Use FRGC images
     image_numbers = numpy.arange(0, 1000) #7,8,9
 #image_numbers= [87]
 
+benchmark.add_task_from_previous_time("Parsing of command line options")
     
 if last_cut_off_face >= 0:
     print "Updating last cut_off to", last_cut_off_face
@@ -658,9 +721,13 @@ if last_cut_off_face >= 0:
 if camera_enabled or pygame_display:
     import pygame
     import pygame.image
+    #import pygame.freetype
+
+   
 if camera_enabled:
     import pygame.camera
 
+    pygame.init()
     pygame.camera.init()
         
     cameras = pygame.camera.list_cameras()
@@ -685,7 +752,14 @@ if pygame_display:
     if camera_enabled:
         screen.blit(image, (0,0))
         pygame.display.update() #pygame.display.flip()
-    
+
+if pygame_display and (estimate_age or estimate_race or estimate_gender):
+    pygame.font.init()
+    myfont = pygame.font.SysFont(None, 24) #pygame.font.SysFont("monospace", 15)
+    #myfont = pygame.freetype.SysFont('Ubuntu Mono', 13)
+
+benchmark.add_task_from_previous_time("Loaded and Startet pygame (if enabled)")
+
 database_original_points = {}
 if coordinates_filename != None:
     coordinates_file = open(coordinates_filename, "r")
@@ -755,11 +829,16 @@ if coordinates_filename != None:
         database_image_coordinates.append(database_original_points[filename][0])
     database_image_coordinates = numpy.array(database_image_coordinates)
 
+benchmark.add_task_from_previous_time("Loaded provided coordinate file (if any)")
+
+
 if display_plots or show_final_detection:
     import matplotlib as mpl
     mpl.use('Qt4Agg')
     import matplotlib.pyplot as plt
-    
+
+benchmark.add_task_from_previous_time("Imported matplotlib (if enabled)")
+
 #Sampling values with respect to regression_width and height values
 #sampling_values = [0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
 default_sampling_values = [0.475, 0.95, 1.9, 3.8]
@@ -776,8 +855,11 @@ t_previous_capture = False
 max_num_plots=10
 num_plots=0
 
-
+finish_capture = False
 for im_number in image_numbers:
+    if finish_capture:
+        break
+    benchmark.update_start_time()
 #    if load_FRGC_images:
 #        frgc_image_coordinates = frgc_original_coordinates[im_number]
 #
@@ -796,7 +878,9 @@ for im_number in image_numbers:
     print "I",
     if not camera_enabled:
         images = load_images([image_filenames[im_number]], image_format="L")
+        images[0].load()
         images_rgb = load_images([image_filenames[im_number]], image_format="RGB")
+        images_rgb[0].load()
     else:
         for i in range(10): #hoping to ensure the image is fresh
             im_pygame = webcam.get_image()
@@ -811,20 +895,41 @@ for im_number in image_numbers:
             print "%.5f Frames per second ##############################"%(1.0/(t-t_previous_capture))
         t_previous_capture = t
 
+    if image_prescaling:
+        prescaling_factor = max(images[0].size[0]*1.0/prescale_size, images[0].size[1]*1.0/prescale_size)
+        if prescaling_factor > 1.0:
+            prescaled_width = int(images[0].size[0]/prescaling_factor)
+            prescaled_height= int(images[0].size[1]/prescaling_factor)
+            images[0] = images[0].resize((prescaled_width, prescaled_height), Image.NEAREST) #[Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
+            images_rgb[0] = images_rgb[0].resize((prescaled_width, prescaled_height), Image.NEAREST) # ANTIALIAS
+        else:
+            prescaling_factor = 1.0
+            
+    benchmark.add_task_from_previous_time("Image loaded or captured")
+
+    im_height = images[0].size[1]
+    im_width = images[0].size[0]
+    
     if pygame_display:
+        if (screen_width != im_width) or (screen_height != im_height):
+            screen_width = im_width
+            screen_height = im_height
+            screen = pygame.display.set_mode(( screen_width, screen_height))
+            pygame.display.set_caption("Pygame/Camera View")
+        
         if not camera_enabled:
             im_pygame =  pygame.image.fromstring(images_rgb[0].tobytes(), images_rgb[0].size, images_rgb[0].mode)
         screen.blit(im_pygame, (0,0))
         ####pygame.display.flip()
         for e in pygame.event.get() :
             if e.type == pygame.QUIT :
-                quit()
+                finish_capture = True #quit()
+
 
     #print images
     #quit()
     
-    im_height = images[0].size[1]
-    im_width = images[0].size[0]
+
 
     detected_faces_eyes_confidences = []
     t2 = time.time()
@@ -861,9 +966,11 @@ for im_number in image_numbers:
 
 #    print sampling_values
 #    quit()
-
+    benchmark.add_task_from_previous_time("Computed sampling values")
 
     for sampling_value in sampling_values:        
+        benchmark.update_start_time()
+
         if face_has_been_found and track_single_face:
             patch_width = subimage_width * sampling_value
             patch_height = subimage_height * sampling_value
@@ -902,7 +1009,7 @@ for im_number in image_numbers:
             max_Dy_diff = net_Dy * patch_height/regression_height
             min_scale_radio = net_mins / 0.825 #1/numpy.sqrt(2.0) #WARNING!!!! 
             max_scale_radio = net_maxs / 0.825 #numpy.sqrt(2.0) #WARNING!!!!
-        
+
         if verbose_networks:
             print "max_Dx_diff=", max_Dx_diff,"max_Dy_diff=",  max_Dy_diff 
             print "posX_values=", posX_values
@@ -921,6 +1028,8 @@ for im_number in image_numbers:
 
         base_magnitude = patch_width **2 + patch_height**2
         base_side = numpy.sqrt(base_magnitude)
+
+        benchmark.add_task_from_previous_time("Computed grid for current sampling")        
         
         #print "subimage_coordinates", subimage_coordinates
         #base_estimation = orig_subimage_coordinates + 0.0
@@ -1075,12 +1184,11 @@ for im_number in image_numbers:
         else:
             subplots = [None,]*20
 
-        t3 = time.time()
-        benchmark.append(("Window Creation", t3-t2))
+        benchmark.add_task_from_previous_time("Window creation, and pre computations")        
         
-        
-        t_latest = t3
-        for num_network in range(num_networks-2):
+        for num_network in range(num_networks-5):
+            benchmark.update_start_time()
+
             print network_types[num_network],
             network_type = network_types[num_network][0:-1]
             network_serial = int(network_types[num_network][-1])
@@ -1117,18 +1225,25 @@ for im_number in image_numbers:
 
             else:
                 print "reusing existing subimage patches, since network is None or previous net is Disc"
+            
+            benchmark.add_task_from_previous_time("Extraction of subimages patches")        
              
 #            if num_network == num_networks-3: #last network before eye detection networks
 #                print "curr_angles=", curr_angles
 #                for i in range(len(subimages)):
 #                    print "saving patch"
 #                    subimages[i].save("patch_im%03d_PAngle%f.jpg"%(i,curr_angles[i]))
-
+            reference = "networks" #"net%d"%num_network
             if len(subimages_arr) > 0:          
                 if skip_feature_extraction == 0:
                     t_afterloading = time.time()
                     print "E",
+                    benchmark.update_start_time(reference=reference)
+                    benchmark.set_default_reference(reference)
                     sl = networks[num_network].execute(subimages_arr, benchmark=benchmark)
+                    benchmark.set_default_reference("a")
+
+                    #sl = networks[num_network].execute(subimages_arr, benchmark=benchmark)
                     if verbose_networks:
                         print "Network %d processed all subimages"%num_network
                 else:
@@ -1137,6 +1252,9 @@ for im_number in image_numbers:
                 num_boxes[num_network] += sl.shape[0]            
                 
                 reg_num_signals = classifiers[num_network].input_dim
+                
+                benchmark.add_task_from_previous_time("Feature extraction")        
+
                 t_class = time.time()
                 avg_labels = classifiers[num_network].avg_labels #TODO: IT IS NOT CLEAN TO HAVE THIS EXTRA ARGUMENT, IMPROVE CUICUILCO_RUN, ETC TO REMOVE IT
 
@@ -1146,6 +1264,8 @@ for im_number in image_numbers:
                 else:
                     reg_out = numpy.zeros(0)
                 print "R",
+                benchmark.add_task_from_previous_time("Regression")        
+
                 #print "reg_out=", reg_out
             
 #                if num_network in [0, 4, 8, 12]:
@@ -1270,6 +1390,8 @@ for im_number in image_numbers:
                 if network_type == "Disc":
                     curr_confidence = reg_out[new_wrong_images==0] + 0            
 
+                benchmark.add_task_from_previous_time("Adjusted according to regression")
+                
                 subplot = subplots[num_network]
                 if subplot!=None:
                     subplot.imshow(im_disp_rgb, aspect='auto', interpolation='nearest', origin='upper')
@@ -1296,13 +1418,7 @@ for im_number in image_numbers:
                         subplot.plot([cx, pax], [cy, pay], color=color)
 
             #    print "subimage_coordinates", subimage_coordinates
-            
-                t_new = time.time()
-                benchmark.append(("Pipeline Image Loading Step %d"%num_network, t_afterloading-t_latest))
-                benchmark.append(("Pipeline Network Step %d"%num_network, t_class-t_afterloading))
-                benchmark.append(("Pipeline Classifier Step %d"%num_network, t_new-t_class))
-            
-                t_latest = t_new
+                benchmark.add_task_from_previous_time("Created network plot")
         
             ##print "Done loading subimages_train: %d Samples"%len(subimages_train)
             ##flow, layers, benchmark, Network = cache.load_obj_from_cache(network_hash, network_base_dir, "Network", verbose=True)   
@@ -1313,6 +1429,7 @@ for im_number in image_numbers:
         
 #            TODO: Make sure this works when nothing was found at all inside an image
 
+            #WHICH PLOT IS USED HERE????? The last one used by the network.
             #Display Faces to find:
             if true_coordinates != None:
                 sampled_face_coordinates = true_coordinates[image_filenames[im_number]]
@@ -1449,13 +1566,14 @@ for im_number in image_numbers:
                 else:
                     pass #warning!
 #                    print "No face present"
-        
+            benchmark.add_task_from_previous_time("Displayed ground truth data (if enabled)")
         #Warning: these are not the true patches that were processed. These are freshly loaded patches
         if save_patches:
             tmp_subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height) )
             for i in range(len(tmp_subimages)):
                 print "saving patch"
                 tmp_subimages[i].save("saved_patches/patch_im%+03d_PAngle%f.jpg"%(i,curr_angles[i]))
+        benchmark.add_task_from_previous_time("Saving centered face patches")
 
 #TODO: POSITION OF EYES SHOULD NOW BE ROTATED ACCORDING TO FACE ANGLE IN PLANE
         eyes_coords_orig = numpy.zeros((len(curr_subimage_coordinates), 4))
@@ -1463,15 +1581,27 @@ for im_number in image_numbers:
         eyesR_box_orig = numpy.zeros((len(curr_subimage_coordinates), 4))        
         for i, box_coords in enumerate(curr_subimage_coordinates):
 
+            #WARNING: PROBABLY THE SCALE IS INCORRECT! THE METHOD IS NOT ROBUST TO OFFSETS XY even when angles are zero
 #            detected_faces.append(compute_approximate_eye_coordinates(eye_coords, face_sampling=0.825))
-            eyes_coords_orig[i], eyesL_box_orig[i], eyesR_box_orig[i] = compute_approximate_eye_boxes_coordinates(box_coords, face_sampling=0.825, eye_sampling = 0.94875 * 2.5 / 2.0, rot_angle=curr_angles[i]) 
-            #eyes_coords_orig[i][1] += 15 #FOR DEBUGING ONLY!!!
-            #eyes_coords_orig[i][3] += 15
-            #eyesL_box_orig[i][1] += 15
-            #eyesL_box_orig[i][3] += 15
-            #eyesR_box_orig[i][1] += 15
-            #eyesR_box_orig[i][3] += 15
-            
+            eyes_coords_orig[i], eyesL_box_orig[i], eyesR_box_orig[i] = compute_approximate_eye_boxes_coordinates(box_coords, face_sampling=0.825, eye_sampling = 2.3719, rot_angle=curr_angles[i]) 
+            if False:
+                offset_x = -2.0 #FOR DEBUGING ONLY!!!
+                offset_y = -2.0
+                offset_a = 0.0 #degrees
+                eyes_coords_orig[i][0] += offset_x #eyeL
+                eyes_coords_orig[i][2] += offset_x #eyeR
+                eyesL_box_orig[i][0] += offset_x
+                eyesL_box_orig[i][2] += offset_x
+                eyesR_box_orig[i][0] += offset_x
+                eyesR_box_orig[i][2] += offset_x
+                eyes_coords_orig[i][1] += offset_y #eyeL
+                eyes_coords_orig[i][3] += offset_y #eyeR
+                eyesL_box_orig[i][1] += offset_y
+                eyesL_box_orig[i][3] += offset_y
+                eyesR_box_orig[i][1] += offset_y
+                eyesR_box_orig[i][3] += offset_y
+                curr_angles[i] = 0.0 + offset_a
+
             display_eye_boxes = True
             if display_eye_boxes and display_plots and subplot != None:
                 #left eye box
@@ -1483,7 +1613,7 @@ for im_number in image_numbers:
                 el_x, el_y, er_x, er_y = eyes_coords_orig[i]
                 subplot.plot([el_x, er_x], [el_y, er_y], "or")
 
- 
+        benchmark.add_task_from_previous_time("Approximated eye coordinates from face coordinates and plotted eye boxes (if enabled)")
         #Later the boxes are updated, and this coordinates change. TODO: UNDERSTAND NEXT TWO LINES, NEEDED?
         #eyesL_coords = (eyesL_box_orig[:,0:2]+eyesL_box_orig[:,2:4])/2.0
         #eyesR_coords = (eyesR_box_orig[:,0:2]+eyesR_box_orig[:,2:4])/2.0
@@ -1495,32 +1625,43 @@ for im_number in image_numbers:
         eyesL_box = eyesL_box_orig + 0.0 #FOR DEBUG ONLY!!!
         #print "eyesL_box=",eyesL_box
         eyeL_subimages = extract_subimages_rotate(images, curr_image_indices, eyesL_box, -1*curr_angles, (eye_subimage_width, eye_subimage_height), interpolation_format)
+
+        benchmark.add_task_from_previous_time("Extracted eye patches (L or R)")
+
         debug = True #and False
         if debug:
             for i in range(len(eyeL_subimages)):
                 print "saving eyeL patch"
-                eyeL_subimages[i].save("saved_patches/eyeL_patch_im%+03d_PAngle%f.jpg"%(i,curr_angles[i]))       
+                eyeL_subimages[i].save("saved_patches/eyeL_patch_im%+03d_PAngle%03.3f.jpg"%(i,curr_angles[i]))       
+
+        benchmark.add_task_from_previous_time("Saved eye patches (if enabled)")
 
         if len(eyeL_subimages) > 0:
-            for num_network in [num_networks-1, num_networks-2]:
+            for num_network in [num_networks-5, num_networks-4]:
                 subimages_arr = images_asarray(eyeL_subimages)+0.0
-                sl = networks[num_network].execute(subimages_arr, benchmark=benchmark)    
+                sl = networks[num_network].execute(subimages_arr, benchmark=None)    
+                benchmark.add_task_from_previous_time("Extracted eye features (L or R)")
+
                 #print "Network %d processed all subimages"%(num_networks-2)
                 reg_num_signals = classifiers[num_network].input_dim
                 avg_labels = classifiers[num_network].avg_labels 
                 print "avg_labels=",avg_labels
                 reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
                 print "reg_out_crude:", reg_out
-                eye_xy_too_far_images |= numpy.abs(reg_out) >= 6.0 
+                eye_xy_too_far_images |= numpy.abs(reg_out) >= 9.0 
+
+                benchmark.add_task_from_previous_time("Regression eye position (L or R)")
 
                 if network_types[num_network] == "EyeLX": #POS_X     
                     #print "EyeLX"  
                     eyes_box_width = numpy.abs(eyesL_box[:,2]-eyesL_box[:,0])
-                    reg_out_x = reg_out * eyes_box_width / eye_regression_width / 0.94875
+                    reg_out_x = (reg_out / 2.3719) * eyes_box_width / eye_regression_width 
+                    ###reg_out_x = reg_out * eyes_box_width / eye_regression_width / 0.94875
                 elif network_types[num_network] == "EyeLY": #POS_Y       
                     #print "EyeLY"  
                     eyes_box_height = numpy.abs(eyesL_box[:,3]-eyesL_box[:,1])
-                    reg_out_y = reg_out * eyes_box_height / eye_regression_height / 0.94875
+                    reg_out_y = (reg_out / 2.3719) * eyes_box_width / eye_regression_width 
+                    ###reg_out_y = reg_out * eyes_box_height / eye_regression_height / 0.94875
                 else:
                     print "Unknown network type! (expecting either EyeLX or EyeLY)", network_types[num_network]
                     quit()       
@@ -1535,6 +1676,8 @@ for im_number in image_numbers:
             eyesL_box[:, 1] = eyesL_box[:, 1] - eyesL_dy  #Y0
             eyesL_box[:, 3] = eyesL_box[:, 3] - eyesL_dy  #Y1
             ###print "left eye, Y reg_out final=", reg_out
+            benchmark.add_task_from_previous_time("Adjusted eye coordinates accounting for rotation angle (L or R)")
+
                     
             print "LE found *********************************************************************"
         
@@ -1546,31 +1689,41 @@ for im_number in image_numbers:
         
         #print "eyesRhack_box=",eyesRhack_box
         eyeR_subimages = extract_subimages_rotate(images, curr_image_indices, eyesRhack_box, -1*curr_angles, (eye_subimage_width, eye_subimage_height), interpolation_format)
-        debug = True and False
+        benchmark.add_task_from_previous_time("Extracted eye patches (L or R)")
+
+        debug = True #and False
         if debug:
             for i in range(len(eyeR_subimages)):
                 print "saving eyeR patch"
-                eyeR_subimages[i].save("saved_patches/eyeRRpatch_im%+03d_PAngle%f.jpg"%(i,curr_angles[i])) 
+                eyeR_subimages[i].save("saved_patches/eyeRRpatch_im%+03d_PAngle%03.3f.jpg"%(i,curr_angles[i])) 
+        benchmark.add_task_from_previous_time("Saved eye patches (if enabled)")
+
 
         if len(eyeR_subimages) > 0:
-            for num_network in [num_networks-1, num_networks-2]:
+            for num_network in [num_networks-5, num_networks-4]:
             #eyeR_subimages = extract_subimages_basic(images, curr_image_indices, eyesRhack_box, (eye_subimage_width, eye_subimage_height) )
                 subimages_arr = images_asarray(eyeR_subimages)+0.0
-                sl = networks[num_network].execute(subimages_arr, benchmark=benchmark)    
+                sl = networks[num_network].execute(subimages_arr, benchmark=None)    
+                benchmark.add_task_from_previous_time("Extracted eye features (L or R)")
+
                 #print "Network %d processed all subimages"%(num_networks-2)
                 reg_num_signals = classifiers[num_network].input_dim
                 avg_labels = classifiers[num_network].avg_labels 
                 reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
                 print "reg_out_crude:", reg_out
-                eye_xy_too_far_images |= numpy.abs(reg_out) >= 6.0 
+                benchmark.add_task_from_previous_time("Regression eye position (L or R)")
+                
+                eye_xy_too_far_images |= numpy.abs(reg_out) >= 9.0 
                 if network_types[num_network] == "EyeLX": #POS_X     
                     #print "EyeLX"  
                     eyes_box_width = numpy.abs(eyesRhack_box[:,2]-eyesRhack_box[:,0])
-                    reg_out_x = reg_out * eyes_box_width / eye_regression_width * 0.94875 
+                    reg_out_x = (reg_out / 2.3719) * eyes_box_width / eye_regression_width  
+                    ### reg_out_x = reg_out * eyes_box_width / eye_regression_width * 0.94875 #PREVIOUS WORKING VERSION 
                 elif network_types[num_network] == "EyeLY": #POS_Y       
                     #print "EyeLY"  
                     eyes_box_height = numpy.abs(eyesRhack_box[:,3]-eyesRhack_box[:,1])
-                    reg_out_y = reg_out * eyes_box_height / eye_regression_height * 0.94875
+                    reg_out_y = (reg_out / 2.3719) * eyes_box_width / eye_regression_width
+                    ### reg_out_y = reg_out * eyes_box_height / eye_regression_height * 0.94875
                     print "right eye, Y reg_out final=", reg_out
                 else:
                     print "Unknown network type!", network_types[num_network]
@@ -1587,6 +1740,8 @@ for im_number in image_numbers:
             eyesRhack_box[:, 1] = eyesRhack_box[:, 1] - eyesR_dy  #Y0
             eyesRhack_box[:, 3] = eyesRhack_box[:, 3] - eyesR_dy  #Y1
 
+            benchmark.add_task_from_previous_time("Adjusted eye coordinates accounting for rotation angle (L or R)")
+
         #Undo horizontal swap of coordinates
         eyesR_box = eyesRhack_box + 0.0
         eyesR_box[:,0] = eyesRhack_box[:,2]
@@ -1596,6 +1751,8 @@ for im_number in image_numbers:
         eyesL_coords = (eyesL_box[:,0:2]+eyesL_box[:,2:4])/2.0
         eyesR_coords = (eyesR_box[:,0:2]+eyesR_box[:,2:4])/2.0
 
+
+
         discard_too_far_images = False or True
         if discard_too_far_images:
             print "Number of images discarded due to 'eye_xy_too_far':",  eye_xy_too_far_images.sum()
@@ -1603,6 +1760,8 @@ for im_number in image_numbers:
             eyesR_coords= eyesR_coords[eye_xy_too_far_images==0]
             curr_subimage_coordinates = curr_subimage_coordinates[eye_xy_too_far_images==0,:]
 
+        benchmark.update_start_time()
+        
         #This actually displays the found eyes
         display_eye_boxes = True            
         if display_eye_boxes and display_plots and subplot!=None:
@@ -1617,6 +1776,7 @@ for im_number in image_numbers:
 #                            subplot.plot([ab_x0, ab_x1, ab_x1, ab_x0, ab_x0], [ab_y0, ab_y0, ab_y1, ab_y1, ab_y0], "w")
 #                            #Left eye, right eye and face center
 #                            subplot.plot([ael_x, aer_x, afc_x], [ael_y, aer_y, afc_y], "wo")
+        benchmark.add_task_from_previous_time("Displayed all found and not discarded eyes")
               
         for j, box_coords in enumerate(curr_subimage_coordinates):            
             eyes_coords = eyes_coords_orig[j]
@@ -1624,7 +1784,7 @@ for im_number in image_numbers:
             detected_faces_eyes_confidences.append(box_eyes_coords_confidence)
             
         #Performance computation
-        num_network = num_networks-1
+        num_network = num_networks-3
         num_boxes[num_network] += len(curr_subimage_coordinates) 
 
         #Compute error after eye networks
@@ -1733,6 +1893,7 @@ for im_number in image_numbers:
                 pass #warning!
 
             
+        benchmark.add_task_from_previous_time("Computed detection rates and precisions (if enabled)")
                    
         
 #            TODO: Make sure this works when nothing was found at all inside an image
@@ -1751,53 +1912,113 @@ for im_number in image_numbers:
                     #Left eye, right eye and face center
                     subplot.plot([el_x, er_x, fc_x], [el_y, er_y, fc_y], "ro")
 
+        benchmark.add_task_from_previous_time("Plotted true face box and positions of eyes and face center (if enabled)")
         
     #print "Faces/Eyes before purge:", detected_faces_eyes_confidence
     detected_faces_eyes_confidences_purgued = purgueDetectedFacesEyesConfidence(detected_faces_eyes_confidences)
+    benchmark.add_task_from_previous_time("Purgued repeated face detections")
+
     print "\n%d Faces/Eyes detected after purge:"%len(detected_faces_eyes_confidences_purgued), detected_faces_eyes_confidences_purgued
 
-    if estimate_age:
+    if estimate_age or estimate_race or estimate_gender:
         #Parameters used to emulate face normalization
         normalization_method = "eyes_inferred-mouth_areaZ"
         centering_mode="mid_eyes_inferred-mouth"
         rotation_mode="EyeLineRotation"
-        out_dir = "normalizedEyesZ4_h/" # "normalizedEyesZ2_h_RGB/"
-        prefix = "EyeNZ4"
-        num_tries = 1        
-        allow_random_background=True and False
+        allow_random_background = False
         out_size = (256,260)
-    
+        age_image_width = out_size[0]
+        age_image_height = out_size[1]
+        integer_rotation_center = True
+        
         #Parameters used to emulate image loading (load_data_from_sSeq)
         age_base_scale = 1.14 
-        age_scale_offset = 0.00 #0.08 0.04  
-        age_obj_avg_std = 0.165 #0.17! # ** 0.0
+        ####age_scale_offset = 0.00 #0.08 0.04  
+        
         age_obj_std_base = 0.16 # ** 0.16
-        age_obj_std_dif = 0.081 #0.096! # ** 0.00 #WARNING!!! WHY min can be smaller than zero???!!!
     
-        age_dx=0
-        age_dy=0
-        age_smin=(age_base_scale+age_scale_offset)
-        age_smax=(age_base_scale+age_scale_offset)
-        age_delta_rotation=0.0
+        reduction_factor = 160.0/96 # (affects only sampling, subimage size, and translations)
+        age_sampling = age_base_scale * reduction_factor
         age_pre_mirroring="none"
-        age_contrast_enhance=True
+        age_contrast_enhance="AgeContrastEnhancement_Avg_Std"
         age_obj_avg_std=0.0
-        age_obj_std_min=age_obj_std_base
-        age_obj_std_max=age_obj_std_base
+        age_obj_std=age_obj_std_base
         
+        age_subimage_first_row = age_image_height/2.0 - age_subimage_height * age_sampling/2.0
+        age_subimage_first_column = age_image_width/2.0 - age_subimage_width * age_sampling/2.0
+        age_translations_x = 0.0 / reduction_factor
+        age_translations_y = -6.0 / reduction_factor
+
         #1)Extract face patches (usually 96x96, centered according to the eye positions)
+        num_faces_found = len(detected_faces_eyes_confidences_purgued)
+        age_estimates = numpy.zeros(num_faces_found)
+        race_estimates = 10 * numpy.ones(num_faces_found)
+        gender_estimates = 10 * numpy.ones(num_faces_found)
+
+        benchmark.add_task_from_previous_time("Prepared for age, gender, and race estimation")
+
         for j, box_eyes_coords_confidence in enumerate(detected_faces_eyes_confidences_purgued):            
+            #A) Generate normalized image
             #contents: eyeL_x, eyeL_y, eyeR_x, eyeR_y, mouth_x, mouth_y
+            benchmark.update_start_time()
             float_coords = [box_eyes_coords_confidence[4], box_eyes_coords_confidence[5], box_eyes_coords_confidence[6], box_eyes_coords_confidence[7], 0.0, 0.0]
-            im2 = normalize_image(None, float_coords, normalization_method=normalization_method, centering_mode=centering_mode, rotation_mode=rotation_mode, integer_rotation_center=integer_rotation_center, out_size = out_size, convert_format=convert_format, verbose=False, allow_random_background=allow_random_background, image=images[0])            
-      
-        
+            im2 = face_normalization_tools.normalize_image(None, float_coords, normalization_method=normalization_method, centering_mode=centering_mode, 
+                    rotation_mode=rotation_mode, integer_rotation_center=integer_rotation_center, out_size = out_size, convert_format="L", 
+                    verbose=False, allow_random_background=allow_random_background, image=images[0])            
+            benchmark.add_task_from_previous_time("Age/race/gender: computed normalized image")
+
+            ##print im2
+            ##print type(im2)
+            ##print isinstance(im2, numpy.ndarray)
+            ##print isinstance(im2, Image.Image)            
+            #B)Extract actual patches
+            age_subimages_arr = load_image_data_monoprocessor(image_files=["nofile"], image_array=im2, image_width=age_image_width, image_height=age_image_height, 
+                    subimage_width=age_subimage_width, subimage_height=age_subimage_height, pre_mirroring_flags=False, pixelsampling_x = age_sampling, pixelsampling_y = age_sampling, 
+                    subimage_first_row=age_subimage_first_row, subimage_first_column=age_subimage_first_column, add_noise = False, convert_format="L", 
+                    translations_x=age_translations_x, translations_y=age_translations_y, trans_sampled=True, rotation=0.0, contrast_enhance = age_contrast_enhance, obj_avgs=0.0, 
+                    obj_stds=age_obj_std, background_type=None, color_background_filter=None, subimage_reference_point = 0, verbose=False)
+
+            benchmark.add_task_from_previous_time("Age/race/gender: extracted image array")
+                
+            im_raw = numpy.reshape(age_subimages_arr[0], (96, 96))
+            im = scipy.misc.toimage(im_raw, mode="L")
+            im.save("ImageForAgeEstimation%03d.jpg"%j)
         
         #2)Apply the age estimation network
-            
-        #3)Interpret the results
-    
+            num_network = num_networks-3
+            sl = networks[num_network].execute(age_subimages_arr, benchmark=None)             
+            benchmark.add_task_from_previous_time("Age/race/gender: feature extraction")
 
+            if estimate_age:
+                reg_num_signals = classifiers[num_network].input_dim
+                avg_labels = classifiers[num_network].avg_labels 
+                reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
+                benchmark.add_task_from_previous_time("Computed age regression")
+
+                age_estimates[j] = reg_out[0]
+                print "age estimation:", reg_out[0]
+            if estimate_race:
+                num_network = num_networks-2
+                reg_num_signals = classifiers[num_network].input_dim
+                reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
+                benchmark.add_task_from_previous_time("Computed race classification")
+
+                race_estimates[j] = reg_out[0]
+                print "race estimation:", reg_out[0]
+            if estimate_gender:
+                num_network = num_networks-1
+                reg_num_signals = classifiers[num_network].input_dim
+                reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
+                benchmark.add_task_from_previous_time("Computed gender classification")
+
+                gender_estimates[j] = reg_out[0]
+                print "gender estimation:", reg_out[0]
+        #3)Interpret the results
+        gender_estimates = map_gender_labels_to_strings(gender_estimates) 
+        race_estimates = map_binary_race_labels_to_strings(race_estimates)
+        print "Age estimates:", age_estimates
+        print "Race estimates:", race_estimates
+        print "Gender estimates:", gender_estimates
     if track_single_face:
         if len(detected_faces_eyes_confidences_purgued) > 0:
             face_eyes_coords = detected_faces_eyes_confidences_purgued[0]
@@ -1805,21 +2026,28 @@ for im_number in image_numbers:
             face_has_been_found = True
         else:
             face_has_been_found = False      
-               
+
+    benchmark.update_start_time()               
     if show_final_detection:
         f0 = plt.figure()
         plt.suptitle("Final face detections")
-        plt.imshow(im_disp_rgb, aspect='auto', interpolation='nearest', origin='upper')
-        for face_eyes_coords in detected_faces_eyes_confidences_purgued:
+        ax = f0.add_subplot(111)
+        ax.imshow(im_disp_rgb, aspect='auto', interpolation='nearest', origin='upper')
+        for j, face_eyes_coords in enumerate(detected_faces_eyes_confidences_purgued):
             b_x0, b_y0, b_x1, b_y1, el_x, el_y, er_x, er_y, conf = face_eyes_coords
             #color = (conf, conf, conf)
             color = (1.0,1.0,1.0)
-            plt.plot([b_x0, b_x1, b_x1, b_x0, b_x0], [b_y0, b_y0, b_y1, b_y1, b_y0], color=color, linewidth=2)
-            plt.plot([el_x], [el_y], "bo")
-            plt.plot([er_x], [er_y], "yo")
-    
+            ax.plot([b_x0, b_x1, b_x1, b_x0, b_x0], [b_y0, b_y0, b_y1, b_y1, b_y0], color=color, linewidth=2)
+            ax.plot([el_x], [el_y], "bo")
+            ax.plot([er_x], [er_y], "yo")
+            
+            if estimate_age:
+                separation_y = (b_y1-b_y0)/20
+                ax.text(b_x0, b_y0-separation_y, '%2.1d years, %s, %s'%(age_estimates[j], race_estimates[j], gender_estimates[j]), verticalalignment='bottom', horizontalalignment='left', color='red', fontsize=12)            
+    benchmark.add_task_from_previous_time("Final display: eyes, face box, and age, gender, race labels (if enabled)")
+
     if pygame_display:
-        for face_eyes_coords in detected_faces_eyes_confidences_purgued:
+        for j, face_eyes_coords in enumerate(detected_faces_eyes_confidences_purgued):
             b_x0, b_y0, b_x1, b_y1, el_x, el_y, er_x, er_y, conf = map(int, map(round, face_eyes_coords))
             
             #plt.plot([b_x0, b_x1, b_x1, b_x0, b_x0], [b_y0, b_y0, b_y1, b_y1, b_y0], color=color, linewidth=2)
@@ -1829,7 +2057,17 @@ for im_number in image_numbers:
             #plt.plot([er_x], [er_y], "yo")
             pygame.draw.circle(screen, (255, 255, 0), (er_x,er_y), 5, 0)
             pygame.draw.circle(screen, (255, 255, 255), (0,0), 1, 0)
+
+            if estimate_age:
+                separation_y = (b_y1-b_y0)/20
+                pygame_text = '%2.1d years, %s, %s'%(age_estimates[j], race_estimates[j], gender_estimates[j])
+                pygame_label = myfont.render(pygame_text, 1, (255, 50, 50))
+                screen.blit(pygame_label, (b_x0, b_y0-separation_y))
+                ####screen.draw.text(pygame_text, color = (255, 50, 50), bottomleft=(b_x0, b_y0-separation_y))            
+
         pygame.display.update()
+    benchmark.add_task_from_previous_time("Final display (pygame): eyes, face box, and (TODO) age, gender, race labels (if enabled)")
+
                 
     if write_results:
         print "writing face/eyes positions to disk. File:", output_filenames[im_number]
@@ -1847,6 +2085,8 @@ for im_number in image_numbers:
         except:
             print "Error while trying to write to output file %s \n"%output_filenames[im_number]
         fd.close()
+
+    benchmark.add_task_from_previous_time("Results were written to output file (if enabled)")
         
 #        for (msg,t) in benchmark:
 #            print msg, " ", t
@@ -1946,13 +2186,16 @@ if plots_created or show_final_detection:
     print "Displaying one or more plots"
     plt.show()
 
+benchmark.display()  
+
 if pygame_display:
     while True:
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
                 print "e=", e
                 quit()
-                
+        
+
 print "Program successfully finished"
 #from GenerateSystemParameters import Linear4LNetwork as Network
 #This defines the sequences used for training, and testing
