@@ -10,6 +10,8 @@
 
 import numpy
 import scipy
+import mkl
+mkl.set_num_threads(8)
 
 display_plots = True and False
 
@@ -39,6 +41,7 @@ import string
 import xml_frgc_tools as frgc
 import getopt
 import face_normalization_tools 
+
 
 command_line_interface = True #and False
 display_only_diagonal = False #or True
@@ -79,7 +82,7 @@ estimate_age = True
 estimate_gender = True
 estimate_race = True
 
-image_prescaling = True #and False
+image_prescaling = True and False
 prescale_size = 800
 prescale_factor = 1.0
 
@@ -1210,9 +1213,10 @@ for im_number in image_numbers:
                 #Get arrays
                 print "P",
                     
-                subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height), interpolation_format)
+                subimages = extract_subimages_rotate_ar_parallel(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height), interpolation_format)
+                subimages_arr = subimages
                 if len(subimages) > 0:
-                    subimages_arr = images_asarray(subimages)+0.0
+                    #subimages_arr = images_asarray(subimages)+0.0 ##### Warning!!!
                     contrast_normalize = True and False
                     if contrast_normalize:
                         #print "min and max image array intensities are:", subimages_arr.min(), subimages_arr.max()
@@ -1648,7 +1652,7 @@ for im_number in image_numbers:
                 print "avg_labels=",avg_labels
                 reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
                 print "reg_out_crude:", reg_out
-                eye_xy_too_far_images |= numpy.abs(reg_out) >= 9.0 
+                eye_xy_too_far_images |= numpy.abs(reg_out) >= 9.0 #9.0 
 
                 benchmark.add_task_from_previous_time("Regression eye position (L or R)")
 
@@ -1713,7 +1717,7 @@ for im_number in image_numbers:
                 print "reg_out_crude:", reg_out
                 benchmark.add_task_from_previous_time("Regression eye position (L or R)")
                 
-                eye_xy_too_far_images |= numpy.abs(reg_out) >= 9.0 
+                eye_xy_too_far_images |= numpy.abs(reg_out) >= 9.0 #9.0 
                 if network_types[num_network] == "EyeLX": #POS_X     
                     #print "EyeLX"  
                     eyes_box_width = numpy.abs(eyesRhack_box[:,2]-eyesRhack_box[:,0])
@@ -1952,6 +1956,7 @@ for im_number in image_numbers:
         #1)Extract face patches (usually 96x96, centered according to the eye positions)
         num_faces_found = len(detected_faces_eyes_confidences_purgued)
         age_estimates = numpy.zeros(num_faces_found)
+        age_stds = numpy.zeros(num_faces_found)
         race_estimates = 10 * numpy.ones(num_faces_found)
         gender_estimates = 10 * numpy.ones(num_faces_found)
 
@@ -1992,11 +1997,12 @@ for im_number in image_numbers:
             if estimate_age:
                 reg_num_signals = classifiers[num_network].input_dim
                 avg_labels = classifiers[num_network].avg_labels 
-                reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
+                reg_out, std_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels, estimate_std=True)
                 benchmark.add_task_from_previous_time("Computed age regression")
 
                 age_estimates[j] = reg_out[0]
-                print "age estimation:", reg_out[0]
+                age_stds[j] = std_out[0]
+                print "age estimation:", reg_out[0], "+/-", std_out[0]
             if estimate_race:
                 num_network = num_networks-2
                 reg_num_signals = classifiers[num_network].input_dim
@@ -2017,6 +2023,7 @@ for im_number in image_numbers:
         gender_estimates = map_gender_labels_to_strings(gender_estimates) 
         race_estimates = map_binary_race_labels_to_strings(race_estimates)
         print "Age estimates:", age_estimates
+        print "Age stds: ", age_stds
         print "Race estimates:", race_estimates
         print "Gender estimates:", gender_estimates
     if track_single_face:
@@ -2043,7 +2050,10 @@ for im_number in image_numbers:
             
             if estimate_age:
                 separation_y = (b_y1-b_y0)/20
-                ax.text(b_x0, b_y0-separation_y, '%2.1d years, %s, %s'%(age_estimates[j], race_estimates[j], gender_estimates[j]), verticalalignment='bottom', horizontalalignment='left', color='red', fontsize=12)            
+                color = (0.75,1.0,1.0)
+                ax.text(b_x0, b_y0-separation_y, '%2.1f years +/- %2.1f, \n%s \n%s'%(age_estimates[j], age_stds[j], race_estimates[j], \
+                        gender_estimates[j]), verticalalignment='bottom', horizontalalignment='left', color=color, fontsize=12)            
+                
     benchmark.add_task_from_previous_time("Final display: eyes, face box, and age, gender, race labels (if enabled)")
 
     if pygame_display:
@@ -2060,9 +2070,19 @@ for im_number in image_numbers:
 
             if estimate_age:
                 separation_y = (b_y1-b_y0)/20
-                pygame_text = '%2.1d years, %s, %s'%(age_estimates[j], race_estimates[j], gender_estimates[j])
-                pygame_label = myfont.render(pygame_text, 1, (255, 50, 50))
-                screen.blit(pygame_label, (b_x0, b_y0-separation_y))
+                pygame_text1 = '%2.1f years +/- %2.1f'%(age_estimates[j], age_stds[j])
+                pygame_text2 = '%s'%race_estimates[j]
+                pygame_text3 = '%s'%gender_estimates[j]
+                text_color = (205,255,255)
+                pygame_labels = [myfont.render(pygame_text1, 1, text_color), myfont.render(pygame_text2, 1, text_color), myfont.render(pygame_text3, 1, text_color)]
+
+                label_rect1 = pygame_labels[0].get_rect()
+                label_rect2 = pygame_labels[1].get_rect()
+                label_rect3 = pygame_labels[2].get_rect()
+                
+                screen.blit(pygame_labels[0], (b_x0, b_y0-separation_y*0 - label_rect1.height - label_rect2.height - label_rect3.height))
+                screen.blit(pygame_labels[1], (b_x0, b_y0-separation_y*0 - label_rect2.height - label_rect3.height))
+                screen.blit(pygame_labels[2], (b_x0, b_y0-separation_y*0 - label_rect3.height))
                 ####screen.draw.text(pygame_text, color = (255, 50, 50), bottomleft=(b_x0, b_y0-separation_y))            
 
         pygame.display.update()

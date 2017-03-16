@@ -110,6 +110,7 @@ class GeneralExpansionNode(mdp.Node):
         self.rs_offsets = None
         self.rs_data_training_std = None
         self.rs_data_training_mean = None
+        self.expanded_dims = None
         super(GeneralExpansionNode, self).__init__(input_dim, dtype)
     def expanded_dim(self, n):
         exp_dim=0
@@ -120,11 +121,12 @@ class GeneralExpansionNode(mdp.Node):
             exp_dim += outx.shape[1]
         return exp_dim
     def output_sizes(self, n):
-        sizes = numpy.zeros(len(self.funcs))
+        sizes = numpy.zeros(len(self.funcs),dtype=int)
         x = numpy.zeros((1,n))
         for i, func in enumerate(self.funcs):
             outx = func(x)
             sizes[i] = outx.shape[1]
+            #print "sizes[%d]="%i, sizes[i]
         return sizes
     def is_trainable(self):
         if self.funcs == "RandomSigmoids":
@@ -133,7 +135,7 @@ class GeneralExpansionNode(mdp.Node):
             return False
     def _train(self, x):
         if self.input_dim is None:
-            self.set_input_dim(x.shape[1])
+            self.set_input_dim(x.shape[1])           
             
         input_dim = self.input_dim
     
@@ -197,17 +199,21 @@ class GeneralExpansionNode(mdp.Node):
     def _execute(self, x):
         if self.input_dim is None:
             self.set_input_dim(x.shape[1]) 
+            print "self.input_dim was None!, now", self.input_dim
+
+        #if self.expanded_dims is None:
+        #    self.expanded_dims = self.output_sizes(self.input_dim)
 
         if self.funcs != "RandomSigmoids":
             num_samples = x.shape[0]
     #        output_dim = expanded_dim(self.input_dim)
-            sizes = self.output_sizes(self.input_dim)
+            self.expanded_dims = self.output_sizes(self.input_dim)
             out = numpy.zeros((num_samples, self.output_dim))
 
             current_pos = 0
             for i, func in enumerate(self.funcs):
-                out[:,current_pos:current_pos+sizes[i]] = func(x)
-                current_pos += sizes[i]
+                out[:,current_pos:current_pos+self.expanded_dims[i]] = func(x)
+                current_pos += self.expanded_dims[i]
         else:
             data_norm = (x-self.rs_data_training_mean)/self.rs_data_training_std
             out = extract_sigmoid_features(data_norm, self.rs_coefficients, self.rs_offsets, scale=1.0, offset=0.0, use_special_features=True)

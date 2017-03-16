@@ -406,7 +406,7 @@ def load_image_data_monoprocessor(image_files, image_array, image_width, image_h
                 y0 = subimage_first_row[act_im_num] + translations_y[act_im_num]
                 x1 = subimage_first_column[act_im_num] + translations_x[act_im_num] + subimage_width * pixelsampling_x[act_im_num]
                 y1 = subimage_first_row[act_im_num] + translations_y[act_im_num] + subimage_height * pixelsampling_y[act_im_num]
-                if rotation != None:
+                if not (rotation is None):
                     delta_ang = rotation[act_im_num]
                 else:
                     delta_ang = None
@@ -1241,6 +1241,95 @@ def extract_subimages_basic(images, image_indices, coordinates, out_size=(64,64)
         subimages.append(im_out)
     return subimages
 
+
+global_images = None
+global_all_coordinates = None
+global_delta_angs = None
+global_image_indices = None
+#lobal_subimages_ar_list = None
+
+def extract_subimages_rotate_ar_parallel(images, image_indices, all_coordinates, delta_angs, out_size=(64,64), interpolation_format=interpolation_format, num_proc=7):
+    global global_images
+    global global_all_coordinates 
+    global global_delta_angs 
+    global global_image_indices 
+    #global global_subimages_ar_list
+    
+    if len(image_indices) != len(all_coordinates):
+        raise Exception("number of images indices %d and number of coordinates %d do not match"%(len(image_indices), len(all_coordinates)) )
+    
+    if len(images) < 1:
+        raise Exception("At least one image is needed")    
+    
+    num_subimages = len(image_indices)
+    if num_subimages == 0:
+        return []
+
+    actual_num_proc = min(num_subimages, num_proc)       
+    chunk_indices = numpy.linspace(0, num_subimages, actual_num_proc+1, dtype=int)   
+    
+    out_queue = multiprocessing.Queue()
+    procs = []
+    subimages = []
+
+    global_images = images
+    global_all_coordinates = all_coordinates
+    global_delta_angs = delta_angs
+    global_image_indices = image_indices
+    #global_subimages_ar_list = list(range(actual_num_proc))
+    
+    for proc_nr in range(actual_num_proc):
+        first_element = chunk_indices[proc_nr]
+        last_element = chunk_indices[proc_nr+1]
+        p = multiprocessing.Process(target=extract_subimages_rotate_queue,
+                args=(first_element, last_element, out_size, interpolation_format, proc_nr, out_queue))
+        procs.append(p)
+        p.start()
+        
+    subimages_list = [None]*actual_num_proc
+
+    for i in range(actual_num_proc):
+        proc_nr, chunk_subimages_ar = out_queue.get()
+        subimages_list[proc_nr] = chunk_subimages_ar
+
+    #subimages = sum(subimages_list, [])
+    subimages_ar = numpy.vstack(subimages_list) 
+    for p in procs:
+        p.join()         
+                  
+    #print "global_subimages_ar_list=", global_subimages_ar_list
+    #subimages_ar = numpy.vstack(global_subimages_ar_list) 
+    
+    if len(subimages_ar) != num_subimages:
+        er = "incorrect number of subimages were extracted!!!"
+        raise Exception(er)
+    
+    global_images = None 
+    global_all_coordinates = None
+    global_delta_angs = None
+    global_image_indices = None 
+    #global_subimages_ar_list = None
+    
+    return subimages_ar
+
+def extract_subimages_rotate_queue(first_element, last_element, out_size=(64,64), interpolation_format=interpolation_format, proc_nr=0, out_queue=None):
+    global global_images
+    global global_all_coordinates 
+    global global_delta_angs 
+    global global_image_indices 
+    #global global_subimages_ar_list
+    
+    #print "global_images is ", global_images
+    #print "proc_nr=", proc_nr
+
+    subimages = extract_subimages_rotate(images=global_images, image_indices=global_image_indices[first_element:last_element], 
+                                         all_coordinates=global_all_coordinates[first_element:last_element,:], delta_angs=global_delta_angs[first_element:last_element], out_size=out_size, interpolation_format = interpolation_format)
+    #global_subimages_ar_list[proc_nr] 
+    subimages_ar = images_asarray(subimages).astype("float16")
+    #global_subimages_ar_list[proc_nr] = 5
+    #print "done proc_nr=", proc_nr
+    out_queue.put((proc_nr, subimages_ar))
+        
 def extract_subimages_rotate(images, image_indices, all_coordinates, delta_angs, out_size=(64,64), interpolation_format=interpolation_format):
     if len(image_indices) != len(all_coordinates):
         raise Exception("number of images indices %d and number of coordinates %d do not match"%(len(image_indices), len(all_coordinates)) )
@@ -1256,6 +1345,7 @@ def extract_subimages_rotate(images, image_indices, all_coordinates, delta_angs,
         else:
             im_out = images[im_index].transform(out_size, Image.EXTENT, subimage_coordinates, interpolation_format)
         subimages.append(im_out)
+
     return subimages
     
 def extract_subimage_rotate(image, subimage_coordinates, delta_ang, out_size=(64,64), allow_out_of_image_sampling=True, interpolation_format=interpolation_format):

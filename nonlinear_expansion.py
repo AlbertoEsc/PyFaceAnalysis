@@ -3,6 +3,8 @@
 #Ruhr-University-Bochum, Institute of Neurocomputation, Group of Prof. Dr. Wiskott
 
 import numpy
+import numexpr
+
 nan = numpy.nan
 
 
@@ -717,7 +719,11 @@ def unsigned_2_08expo(x, expo1=2, expo2=0.8):
     return res
 
 def unsigned_08expo(x):
+    return numexpr.evaluate("abs(x)**0.8")
+
+def unsigned_08expo_slow(x):
     return numpy.abs(x) ** 0.8
+
 
 def unsigned_08expo_m1(x):
     return numpy.abs(x-1) ** 0.8
