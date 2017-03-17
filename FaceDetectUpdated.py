@@ -83,7 +83,7 @@ estimate_gender = True
 estimate_race = True
 
 image_prescaling = True and False
-prescale_size = 800
+prescale_size = 1000
 prescale_factor = 1.0
 
 interpolation_formats = [Image.NEAREST]*10 #[Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
@@ -344,26 +344,28 @@ def image_array_contrast_normalize_avg_std(subimages_array, mean=0.0, std=0.2):
     #print "after clip: min =", subimages_array.min(axis=1).mean()
     #print "XXXX ", subimages_array[0].mean(), subimages_array[0].std(), subimages_array[0].min(), subimages_array[0].max()
 
-def map_gender_labels_to_strings(gender_label_array):
+def map_real_gender_labels_to_strings(gender_label_array):
     strings = []
+    #label = -1 => Male, label = 1 => Female
     for label in gender_label_array:
-        if label == -1:
+        if label <= 0: 
             strings.append("Male")
-        elif label == 1:
-            strings.append("Female")
         else:
+            strings.append("Female")
+        if label < -1.000001 or label > 1.000001:
             er = "Unrecognized label: "+str(label)
-            raise Exception(er)
+            raise Exception(er) 
     return strings
 
-def map_binary_race_labels_to_strings(race_label_array):
+def map_real_race_labels_to_strings(race_label_array):
     strings = []
+    # label==-2: "Black", label == 2: "White"  ##NOTE:HERE LABELS ARE USED, NOT CLASSES
     for label in race_label_array:
-        if label == 0:
+        if label <= 0.0:
             strings.append("Black")
-        elif label == 1:
-            strings.append("White")
         else:
+            strings.append("White")
+        if label < -2.000001 or label > 2.000001:
             er = "Unrecognized label: "+str(label)
             raise Exception(er)
     return strings
@@ -2006,7 +2008,9 @@ for im_number in image_numbers:
             if estimate_race:
                 num_network = num_networks-2
                 reg_num_signals = classifiers[num_network].input_dim
-                reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
+                avg_labels = classifiers[num_network].avg_labels
+                #reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
+                reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
                 benchmark.add_task_from_previous_time("Computed race classification")
 
                 race_estimates[j] = reg_out[0]
@@ -2014,18 +2018,24 @@ for im_number in image_numbers:
             if estimate_gender:
                 num_network = num_networks-1
                 reg_num_signals = classifiers[num_network].input_dim
+                avg_labels = classifiers[num_network].avg_labels
                 reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
                 benchmark.add_task_from_previous_time("Computed gender classification")
 
                 gender_estimates[j] = reg_out[0]
                 print "gender estimation:", reg_out[0]
         #3)Interpret the results
-        gender_estimates = map_gender_labels_to_strings(gender_estimates) 
-        race_estimates = map_binary_race_labels_to_strings(race_estimates)
+        gender_confidences = numpy.abs(gender_estimates)
+        race_confidences = numpy.abs(race_estimates)/2.0
+
+        gender_estimates = map_real_gender_labels_to_strings(gender_estimates) 
+        race_estimates = map_real_race_labels_to_strings(race_estimates)
         print "Age estimates:", age_estimates
         print "Age stds: ", age_stds
         print "Race estimates:", race_estimates
+        print "Race confidences:", race_confidences
         print "Gender estimates:", gender_estimates
+        print "Gender confidences:", gender_confidences
     if track_single_face:
         if len(detected_faces_eyes_confidences_purgued) > 0:
             face_eyes_coords = detected_faces_eyes_confidences_purgued[0]
@@ -2051,8 +2061,8 @@ for im_number in image_numbers:
             if estimate_age:
                 separation_y = (b_y1-b_y0)/20
                 color = (0.75,1.0,1.0)
-                ax.text(b_x0, b_y0-separation_y, '%2.1f years +/- %2.1f, \n%s \n%s'%(age_estimates[j], age_stds[j], race_estimates[j], \
-                        gender_estimates[j]), verticalalignment='bottom', horizontalalignment='left', color=color, fontsize=12)            
+                ax.text(b_x0, b_y0-separation_y, '%2.1f years +/- %2.1f, \n%s (%.1f %%)\n%s (%.1f %%)'%(age_estimates[j], age_stds[j], race_estimates[j], \
+                        race_confidences[j]*100, gender_estimates[j], gender_confidences[j]*100), verticalalignment='bottom', horizontalalignment='left', color=color, fontsize=12)            
                 
     benchmark.add_task_from_previous_time("Final display: eyes, face box, and age, gender, race labels (if enabled)")
 
