@@ -11,7 +11,7 @@
 import numpy
 import scipy
 import mkl
-mkl.set_num_threads(8)
+#mkl.set_num_threads(4)
 
 display_plots = True and False
 
@@ -82,7 +82,7 @@ estimate_age = True
 estimate_gender = True
 estimate_race = True
 
-image_prescaling = True and False
+image_prescaling = True #and False
 prescale_size = 1000
 prescale_factor = 1.0
 
@@ -1215,10 +1215,11 @@ for im_number in image_numbers:
                 #Get arrays
                 print "P",
                     
-                subimages = extract_subimages_rotate_ar_parallel(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height), interpolation_format)
-                subimages_arr = subimages
+                #subimages = extract_subimages_rotate_ar_parallel(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height), interpolation_format)
+                subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height), interpolation_format)
+                #subimages_arr = subimages
                 if len(subimages) > 0:
-                    #subimages_arr = images_asarray(subimages)+0.0 ##### Warning!!!
+                    subimages_arr = images_asarray(subimages)+0.0 ##### Warning!!!
                     contrast_normalize = True and False
                     if contrast_normalize:
                         #print "min and max image array intensities are:", subimages_arr.min(), subimages_arr.max()

@@ -126,7 +126,7 @@ class GeneralExpansionNode(mdp.Node):
         for i, func in enumerate(self.funcs):
             outx = func(x)
             sizes[i] = outx.shape[1]
-            #print "sizes[%d]="%i, sizes[i]
+            print "sizes[%d]="%i, sizes[i]
         return sizes
     def is_trainable(self):
         if self.funcs == "RandomSigmoids":
@@ -195,19 +195,21 @@ class GeneralExpansionNode(mdp.Node):
             self._output_dim = self.exp_output_dim
         else:
             self._output_dim = self.expanded_dim(n)
+            self.expanded_dims = self.output_sizes(self.input_dim)
+
 
     def _execute(self, x):
         if self.input_dim is None:
             self.set_input_dim(x.shape[1]) 
             print "self.input_dim was None!, now", self.input_dim
 
-        #if self.expanded_dims is None:
-        #    self.expanded_dims = self.output_sizes(self.input_dim)
+        if "expanded_dims" not in self.__dict__:
+            self.expanded_dims = self.output_sizes(self.input_dim)
 
         if self.funcs != "RandomSigmoids":
             num_samples = x.shape[0]
     #        output_dim = expanded_dim(self.input_dim)
-            self.expanded_dims = self.output_sizes(self.input_dim)
+            #self.expanded_dims = self.output_sizes(self.input_dim)
             out = numpy.zeros((num_samples, self.output_dim))
 
             current_pos = 0
