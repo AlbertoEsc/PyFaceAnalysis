@@ -11,7 +11,7 @@
 import numpy
 import scipy
 import mkl
-#mkl.set_num_threads(4)
+mkl.set_num_threads(12)
 
 display_plots = True and False
 
