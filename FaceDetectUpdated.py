@@ -71,6 +71,7 @@ track_single_face= False
 pygame_display = False
 screen_width = 640 # 640
 screen_height = 400 #400
+save_normalized_face_detections = False
 
 patch_overlap_sampling = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 2 patches
 patch_overlap_posx_posy = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 4 patches (twice overlap in each direction)
@@ -82,7 +83,7 @@ estimate_age = True
 estimate_gender = True
 estimate_race = True
 
-image_prescaling = True #and False
+image_prescaling = True and False
 prescale_size = 1000
 prescale_factor = 1.0
 
@@ -588,7 +589,7 @@ if command_line_interface:
                                                         "adaptive_grid_scale=", "adaptive_grid_coords=", "save_patches=","network_figures_together=", 
                                                         "last_cut_off_face=", "cut_offs_face=", "write_age_gender_confidence=", "show_final_detection=",
                                                         "camera_enabled=", "track_single_face=", "pygame_display=", "estimate_age_race_gender=",
-                                                        "image_prescaling=" ])
+                                                        "image_prescaling=", "save_normalized_face_detections="])
             files_set=False
             print "opts=", opts
             print "args=", args
@@ -690,6 +691,9 @@ if command_line_interface:
                 elif opt in ('--image_prescaling'):
                     image_prescaling = bool(int(arg))
                     print "Setting image_prescaling to", image_prescaling
+                elif opt in ('--save_normalized_face_detections'):
+                    save_normalized_face_detections = bool(int(arg))
+                    print "Setting save_normalized_face_detections to", save_normalized_face_detections
                 else:
                     print "Option not handled:", opt
 
@@ -1580,7 +1584,36 @@ for im_number in image_numbers:
             for i in range(len(tmp_subimages)):
                 print "saving patch"
                 tmp_subimages[i].save("saved_patches/patch_im%+03d_PAngle%f.jpg"%(i,curr_angles[i]))
-        benchmark.add_task_from_previous_time("Saving centered face patches")
+            benchmark.add_task_from_previous_time("Saving centered face patches")
+        
+         
+        if save_normalized_face_detections:
+            print "Saving normalized face detections"
+            #Parameters used to emulate face normalization (for pose, not age!)
+            normalization_method = "eyes_inferred-mouth_area"
+            centering_mode="mid_eyes_inferred-mouth"
+            rotation_mode="EyeLineRotation"
+            normalized_face_detections_dir = "normalized_face_detections/"
+            prefix = "EyeN"
+            num_tries = 1        
+            allow_random_background = False
+            out_size = (256,192)
+            convert_format="L"
+            integer_rotation_center = True
+    
+            for i, box_coords in enumerate(curr_subimage_coordinates):
+                eyes_coords_orig_app, _, _ = compute_approximate_eye_boxes_coordinates(box_coords, face_sampling=0.825, eye_sampling = 2.3719, rot_angle=curr_angles[i])
+            
+                float_coords = [eyes_coords_orig_app[0], eyes_coords_orig_app[1], eyes_coords_orig_app[2], eyes_coords_orig_app[3], 0.0, 0.0]
+                im2 = face_normalization_tools.normalize_image(None, float_coords, normalization_method=normalization_method, centering_mode=centering_mode, 
+                        rotation_mode=rotation_mode, integer_rotation_center=integer_rotation_center, out_size = out_size, convert_format=convert_format, 
+                        verbose=False, allow_random_background=allow_random_background, image=images[0])    
+                random_number = numpy.random.randint(1000000)
+                im2.save(normalized_face_detections_dir + prefix + "%06d.jpg"%(random_number))
+            benchmark.add_task_from_previous_time("Saving normalized face detections")
+        
+        
+        
 
 #TODO: POSITION OF EYES SHOULD NOW BE ROTATED ACCORDING TO FACE ANGLE IN PLANE
         eyes_coords_orig = numpy.zeros((len(curr_subimage_coordinates), 4))
