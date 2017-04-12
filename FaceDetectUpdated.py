@@ -94,10 +94,13 @@ interpolation_formats = [Image.NEAREST]*10 #[Image.NEAREST]*1 + [Image.BILINEAR]
 
 benchmark = benchmarking.Benchmark(enabled=False)
 
-pipeline_base_dir = "Pipelines"
+executable_path = os.path.abspath(os.path.dirname(__file__))
+print "executable path is", executable_path
+
+pipeline_base_dir = executable_path + "/Pipelines"
 #images_base_dir = "/local/escalafl/Alberto/ImagesFaceDetection"
-networks_base_dir = "SavedNetworks"
-classifiers_base_dir = "SavedClassifiers"
+networks_base_dir = executable_path + "/SavedNetworks"
+classifiers_base_dir = executable_path + "/SavedClassifiers"
 coordinates_filename = None
 
 #scheduler = mdp.parallel.ThreadScheduler(n_threads=n_parallel)
