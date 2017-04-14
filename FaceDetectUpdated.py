@@ -1671,7 +1671,7 @@ for im_number in image_numbers:
 
         benchmark.add_task_from_previous_time("Extracted eye patches (L or R)")
 
-        debug = True #and False
+        debug = True and False
         if debug:
             for i in range(len(eyeL_subimages)):
                 print "saving eyeL patch"
@@ -1734,7 +1734,7 @@ for im_number in image_numbers:
         eyeR_subimages = extract_subimages_rotate(images, curr_image_indices, eyesRhack_box, -1*curr_angles, (eye_subimage_width, eye_subimage_height), interpolation_format)
         benchmark.add_task_from_previous_time("Extracted eye patches (L or R)")
 
-        debug = True #and False
+        debug = True and False
         if debug:
             for i in range(len(eyeR_subimages)):
                 print "saving eyeR patch"
