@@ -51,7 +51,7 @@ smallest_face = 0.20 # 20% of image size
 grid_centering = True
 plots_created = False #Move, this is not a configuration
 write_results = True
-if not command_line_interface or True: #WARNING!
+if not command_line_interface: #WARNING!
     write_results = False
 right_screen_eye_first = False
 verbose_networks = True and False
@@ -866,6 +866,7 @@ face_has_been_found = False
 t_previous_capture = False
 max_num_plots=10
 num_plots=0
+number_saved_image_age_estimation=0
 
 finish_capture = False
 for im_number in image_numbers:
@@ -2026,8 +2027,8 @@ for im_number in image_numbers:
                 
             im_raw = numpy.reshape(age_subimages_arr[0], (96, 96))
             im = scipy.misc.toimage(im_raw, mode="L")
-            im.save("ImageForAgeEstimation%03d.jpg"%j)
-        
+            im.save("ImageForAgeEstimation%03d.jpg"%(number_saved_image_age_estimation))
+            number_saved_image_age_estimation += 1 
         #2)Apply the age estimation network
             num_network = num_networks-3
             sl = networks[num_network].execute(age_subimages_arr, benchmark=None)             
