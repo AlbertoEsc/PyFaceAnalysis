@@ -2087,7 +2087,7 @@ for im_number in image_numbers:
         f0 = plt.figure()
         plt.suptitle("Final face detections")
         ax = f0.add_subplot(111)
-        ax.imshow(im_disp_rgb, aspect='auto', interpolation='nearest', origin='upper')
+        ax.imshow(im_disp_rgb, extent=[0, im_width, im_height, 0], aspect=1.0, interpolation='nearest') #, origin='upper')
         for j, face_eyes_coords in enumerate(detected_faces_eyes_confidences_purgued):
             b_x0, b_y0, b_x1, b_y1, el_x, el_y, er_x, er_y, conf = face_eyes_coords
             #color = (conf, conf, conf)
