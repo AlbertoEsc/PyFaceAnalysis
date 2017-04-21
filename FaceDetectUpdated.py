@@ -73,8 +73,8 @@ screen_width = 640 # 640
 screen_height = 400 #400
 save_normalized_face_detections = False
 
-patch_overlap_sampling = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 2 patches
-patch_overlap_posx_posy = 1.0 #1.0 = no overlap, 2.0 each image region belongs to approx 4 patches (twice overlap in each direction)
+patch_overlap_sampling = 1.1 #1.0 = no overlap, 2.0 each image region belongs to approx 2 patches
+patch_overlap_posx_posy = 1.1 #1.0 = no overlap, 2.0 each image region belongs to approx 4 patches (twice overlap in each direction)
 tolerance_scale_deviation = 1.1 #1.4 # 1.2  #WARNING!!! 
 tolerance_angle_deviation = 1.1
 tolerance_posxy_deviation = 1.1 #1.0 = no tolerance besides invariance originally learned
@@ -83,7 +83,7 @@ estimate_age = True
 estimate_gender = True
 estimate_race = True
 
-image_prescaling = True and False
+image_prescaling = True #and False
 prescale_size = 1000
 prescale_factor = 1.0
 
@@ -348,27 +348,40 @@ def image_array_contrast_normalize_avg_std(subimages_array, mean=0.0, std=0.2):
     #print "after clip: min =", subimages_array.min(axis=1).mean()
     #print "XXXX ", subimages_array[0].mean(), subimages_array[0].std(), subimages_array[0].min(), subimages_array[0].max()
 
-def map_real_gender_labels_to_strings(gender_label_array):
+def map_real_gender_labels_to_strings(gender_label_array, long_text=True):
     strings = []
     #label = -1 => Male, label = 1 => Female
     for label in gender_label_array:
-        if label <= 0: 
-            strings.append("Male")
+        if label <= 0:
+            if long_text:
+                strings.append("Male")
+            else:
+                strings.append("M")
         else:
-            strings.append("Female")
+            if long_text:
+                strings.append("Female")
+            else:
+                strings.append("F")
+
         if label < -1.000001 or label > 1.000001:
             er = "Unrecognized label: "+str(label)
             raise Exception(er) 
     return strings
 
-def map_real_race_labels_to_strings(race_label_array):
+def map_real_race_labels_to_strings(race_label_array, long_text=True):
     strings = []
     # label==-2: "Black", label == 2: "White"  ##NOTE:HERE LABELS ARE USED, NOT CLASSES
     for label in race_label_array:
         if label <= 0.0:
-            strings.append("Black")
+            if long_text:
+                strings.append("Black")
+            else:
+                strings.append("B")
         else:
-            strings.append("White")
+            if long_text:
+                strings.append("White")
+            else:
+                strings.append("W")
         if label < -2.000001 or label > 2.000001:
             er = "Unrecognized label: "+str(label)
             raise Exception(er)
@@ -770,7 +783,7 @@ if pygame_display and (estimate_age or estimate_race or estimate_gender):
     myfont = pygame.font.SysFont(None, 24) #pygame.font.SysFont("monospace", 15)
     #myfont = pygame.freetype.SysFont('Ubuntu Mono', 13)
 
-benchmark.add_task_from_previous_time("Loaded and Startet pygame (if enabled)")
+benchmark.add_task_from_previous_time("Loaded and Started pygame (if enabled)")
 
 database_original_points = {}
 if coordinates_filename != None:
@@ -1409,13 +1422,14 @@ for im_number in image_numbers:
                 
                 subplot = subplots[num_network]
                 if subplot!=None:
-                    subplot.imshow(im_disp_rgb, aspect='auto', interpolation='nearest', origin='upper')
+                    subplot.imshow(im_disp_rgb, aspect=1.0, interpolation='nearest', origin='upper')
                     #subplot.imshow(im_disp, aspect='auto', interpolation='nearest', origin='upper', cmap=mpl.pyplot.cm.gray)
                     
                     for j, (x0, y0, x1, y1) in enumerate(curr_subimage_coordinates):
                         color = orig_colors[curr_orig_index[j]]
                         if show_confidences and (network_type == "Disc"):
                             color =  (curr_confidence[j], curr_confidence[j], curr_confidence[j])
+                            color = (0.25,0.5,1.0)
                         if display_only_diagonal == True:
                             subplot.plot([x0, x1], [y0, y1], color=color )
                         else:
@@ -1430,7 +1444,7 @@ for im_number in image_numbers:
                         mag = 0.4*(x1-x0)
                         pax = cx + mag*numpy.cos(curr_angles[j]*numpy.pi/180+numpy.pi/2)
                         pay = cy - mag*numpy.sin(curr_angles[j]*numpy.pi/180+numpy.pi/2)
-                        subplot.plot([cx, pax], [cy, pay], color=color)
+                        subplot.plot([cx, pax], [cy, pay], color=color, linewidth=2)
 
             #    print "subimage_coordinates", subimage_coordinates
                 benchmark.add_task_from_previous_time("Created network plot")
@@ -2066,8 +2080,8 @@ for im_number in image_numbers:
         gender_confidences = numpy.abs(gender_estimates)
         race_confidences = numpy.abs(race_estimates)/2.0
 
-        gender_estimates = map_real_gender_labels_to_strings(gender_estimates) 
-        race_estimates = map_real_race_labels_to_strings(race_estimates)
+        gender_estimates = map_real_gender_labels_to_strings(gender_estimates, long_text=True)
+        race_estimates = map_real_race_labels_to_strings(race_estimates, long_text=True)
         print "Age estimates:", age_estimates
         print "Age stds: ", age_stds
         print "Race estimates:", race_estimates
@@ -2091,17 +2105,18 @@ for im_number in image_numbers:
         for j, face_eyes_coords in enumerate(detected_faces_eyes_confidences_purgued):
             b_x0, b_y0, b_x1, b_y1, el_x, el_y, er_x, er_y, conf = face_eyes_coords
             #color = (conf, conf, conf)
-            color = (1.0,1.0,1.0)
+            color = (0.25,0.5,1.0)
             ax.plot([b_x0, b_x1, b_x1, b_x0, b_x0], [b_y0, b_y0, b_y1, b_y1, b_y0], color=color, linewidth=2)
             ax.plot([el_x], [el_y], "bo")
             ax.plot([er_x], [er_y], "yo")
             
             if estimate_age:
                 separation_y = (b_y1-b_y0)/20
-                color = (0.75,1.0,1.0)
-                ax.text(b_x0, b_y0-separation_y, '%2.1f years +/- %2.1f, \n%s (%.1f %%)\n%s (%.1f %%)'%(age_estimates[j], age_stds[j], race_estimates[j], \
-                        race_confidences[j]*100, gender_estimates[j], gender_confidences[j]*100), verticalalignment='bottom', horizontalalignment='left', color=color, fontsize=12)            
-                
+                color = (0.25,0.5,1.0)
+                #ax.text(b_x0, b_y0-separation_y, '%2.1f years +/- %2.1f, \n%s (%.1f %%)\n%s (%.1f %%)'%(age_estimates[j], age_stds[j], race_estimates[j], \
+                #        race_confidences[j]*100, gender_estimates[j], gender_confidences[j]*100), verticalalignment='bottom', horizontalalignment='left', color=color, fontsize=12)
+                ax.text(b_x0 + separation_y*0.5, b_y0 - separation_y, '%2.0f years\n%s\n%s' % (age_estimates[j], race_estimates[j], gender_estimates[j]),
+                        verticalalignment='bottom', horizontalalignment='left', color=color, fontsize=12)
     benchmark.add_task_from_previous_time("Final display: eyes, face box, and age, gender, race labels (if enabled)")
 
     if pygame_display:
