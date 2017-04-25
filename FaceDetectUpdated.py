@@ -83,7 +83,7 @@ estimate_age = True
 estimate_gender = True
 estimate_race = True
 
-image_prescaling = True #and False
+image_prescaling = True and False
 prescale_size = 1000
 prescale_factor = 1.0
 
@@ -926,7 +926,7 @@ for im_number in image_numbers:
         if prescaling_factor > 1.0:
             prescaled_width = int(images[0].size[0]/prescaling_factor)
             prescaled_height= int(images[0].size[1]/prescaling_factor)
-            images[0] = images[0].resize((prescaled_width, prescaled_height), Image.NEAREST) #[Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
+            images[0] = images[0].resize((prescaled_width, prescaled_height), Image.NEAREST) # #[Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
             images_rgb[0] = images_rgb[0].resize((prescaled_width, prescaled_height), Image.NEAREST) # ANTIALIAS
         else:
             prescaling_factor = 1.0
@@ -2106,7 +2106,7 @@ for im_number in image_numbers:
             b_x0, b_y0, b_x1, b_y1, el_x, el_y, er_x, er_y, conf = face_eyes_coords
             #color = (conf, conf, conf)
             color = (0.25,0.5,1.0)
-            ax.plot([b_x0, b_x1, b_x1, b_x0, b_x0], [b_y0, b_y0, b_y1, b_y1, b_y0], color=color, linewidth=2)
+            ax.plot([b_x0, b_x1, b_x1, b_x0, b_x0], [b_y0, b_y0, b_y1, b_y1, b_y0], color=color, linewidth=3)
             ax.plot([el_x], [el_y], "bo")
             ax.plot([er_x], [er_y], "yo")
             
