@@ -60,11 +60,11 @@ EyeLY
 JustFlowREyePosXY Dx in (-10, 10) Dy in (-10, 10), sampling in (186, 193)_1487260703.pckl
 GaussianClassifier_NetNameNon-Linear Ultra Thin 11 Layer NetworkiTrainNameREyePosXY Dx in (-10, 10) Dy in (-10, 10), sampling in (186, 193)_NetH1487260703_CFSlowH23a6ac0b4bb4b6db0b5b9198df036107_NumSig010_L1.pckl
 Age
-JustFlowRAge Dx in (-2, 2) Dy in (-2, 2), sampling in (109 perc, 118 perc)_1486600538.pckl
-GaussianClassifier_NetNamelinearPCANetworkU11LiTrainNametest input_NetH1486600538_CFSlowH4ce3d3c0ec5d47cd9b79e1f06c79ea26_NumSig005_L0.pckl
+JustFlowRAge Dx in (-2, 2) Dy in (-2, 2), sampling in (109 perc, 118 perc)_1493138034_Generalize.pckl
+GaussianClassifier_NetNamelinearPCANetworkU11LiTrainNametest_input_NetH1493138034_CFSlowH03f7894195800ea8779ddf25727836ca_NumSig004_L0_AgeGeneralize.pckl
 Race
 None0.pckl
-GaussianClassifier_NetNamelinearPCANetworkU11LiTrainNametest input_NetH1486600538_CFSlowH4ce3d3c0ec5d47cd9b79e1f06c79ea26_NumSig005_L1.pckl
+GaussianClassifier_NetNamelinearPCANetworkU11LiTrainNametest_input_NetH1493138034_CFSlowH03f7894195800ea8779ddf25727836ca_NumSig005_L1_RaceGeneralize.pckl
 Gender
 None0.pckl
-GaussianClassifier_NetNamelinearPCANetworkU11LiTrainNametest input_NetH1486600538_CFSlowH4ce3d3c0ec5d47cd9b79e1f06c79ea26_NumSig005_L2.pckl
+GaussianClassifier_NetNamelinearPCANetworkU11LiTrainNametest_input_NetH1493138034_CFSlowH03f7894195800ea8779ddf25727836ca_NumSig005_L2_GenderGeneralize.pckl
