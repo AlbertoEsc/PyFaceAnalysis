@@ -83,7 +83,7 @@ estimate_age = True
 estimate_gender = True
 estimate_race = True
 
-image_prescaling = True and False
+image_prescaling = True #and False
 prescale_size = 1000
 prescale_factor = 1.0
 
@@ -926,8 +926,8 @@ for im_number in image_numbers:
         if prescaling_factor > 1.0:
             prescaled_width = int(images[0].size[0]/prescaling_factor)
             prescaled_height= int(images[0].size[1]/prescaling_factor)
-            images[0] = images[0].resize((prescaled_width, prescaled_height), Image.NEAREST) # #[Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
-            images_rgb[0] = images_rgb[0].resize((prescaled_width, prescaled_height), Image.NEAREST) # ANTIALIAS
+            images[0] = images[0].resize((prescaled_width, prescaled_height), Image.BILINEAR) # #[Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
+            images_rgb[0] = images_rgb[0].resize((prescaled_width, prescaled_height), Image.BILINEAR) # ANTIALIAS
         else:
             prescaling_factor = 1.0
             
@@ -2071,7 +2071,8 @@ for im_number in image_numbers:
                 num_network = num_networks-1
                 reg_num_signals = classifiers[num_network].input_dim
                 avg_labels = classifiers[num_network].avg_labels
-                reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
+                #reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
+                reg_out = classifiers[num_network].regression(sl[:,0:reg_num_signals], avg_labels)
                 benchmark.add_task_from_previous_time("Computed gender classification")
 
                 gender_estimates[j] = reg_out[0]
