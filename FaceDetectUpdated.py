@@ -508,13 +508,28 @@ for network_filename in network_filenames:
     print "loading network or flow:", network_filename, "...",
     if network_filename !="None0":
         all_data = cache_obj.load_obj_from_cache(None, base_dir=networks_base_dir, base_filename=network_filename, verbose=True) 
+
+        #for layer_node in all_data.flow:
+        #    if isinstance(layer_node, mdp.hinet.Layer):
+        #        for node in layer_node.nodes:
+        #            if isinstance(node, mdp.nodes.IEVMLRecNode):
+        #                print "deleting unnecessary data"
+        #                if "cov_mtx" in node.sfa_node.__dict__:
+        #                    del node.sfa_node.cov_mtx
+        #                    del node.sfa_node.dcov_mtx
+        #cache_obj.update_cache(all_data, None, networks_base_dir, network_filename+"OUT", overwrite=True, use_hash=None, verbose=True)         
     else:
         all_data = None
+    
     if isinstance(all_data, (list, tuple)):
+        print "Network flow was in a tupple"
         networks.append(all_data[0]) #Keep only the flows
     else:
+        print "Network flow was not in a tupple"
         networks.append(all_data) #It is only a flow
     print "done"
+#quit() 
+    
 classifiers = []
 for classifier_filename in classifier_filenames:
     #load_obj_from_cache(self, hash_value=None, base_dir = None, base_filename=None, verbose=True)
