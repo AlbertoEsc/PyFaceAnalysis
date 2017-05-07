@@ -29,7 +29,7 @@ import random
 import sfa_libs
 from sfa_libs import (scale_to, distance_squared_Euclidean, str3, wider_1Darray, ndarray_to_string, cutoff)
  
-import SystemParameters
+import system_parameters
 from imageLoader import *
 import classifiers_regressions as classifiers
 import network_builder
