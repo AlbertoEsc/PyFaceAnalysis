@@ -18,6 +18,7 @@ PyFaceAnalysis requires the following libraries:
 * MKL
 * numexpr
 * pygame
+
 Besides a few standard libraries, including:
 * numpy
 * scipy
@@ -33,10 +34,15 @@ Make sure to set the parameter *smallest_face*, which controls the size of the s
 
 The most convenient way to apply the algorithm to several images is to use *batch mode*. A batch file is a text file with the following structure:
 > image1.jpg
+
 > output1.txt
+
 > ...
+
 > imageN.jpg
+
 > outputN.jpg
+
 Where each line is a filename that indicates the input image followed by another line that indicates the output filename (where the coordinates of the detected faces are stored).
 
 Batch mode is much faster than the one-filename approach because the software modules are loaded only once. It is important not to add  any white line or space after the last entry. See the provided *sample_batchfile.txt* for an example of a batch file.
@@ -52,7 +58,7 @@ PyFaceAnalysis has been developed by Alberto N. Escalante B. (alberto.escalante@
 
 
 ## Other information
-The system is continuously improving, thus make sure you are using the latest version.
+The system is continuously improving, thus make sure to use the latest version.
 
 Directories are not created when storing the results, thus output directories should be created on beforehand by the user.
 
