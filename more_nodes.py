@@ -126,7 +126,7 @@ class GeneralExpansionNode(mdp.Node):
         for i, func in enumerate(self.funcs):
             outx = func(x)
             sizes[i] = outx.shape[1]
-            print "sizes[%d]="%i, sizes[i],
+            print "SS",
         return sizes
     def is_trainable(self):
         if self.funcs == "RandomSigmoids":
