@@ -41,7 +41,7 @@ The most convenient way to apply the algorithm to several images is to use *batc
 
 > imageN.jpg
 
-> outputN.jpg
+> outputN.txt
 
 Where each line is a filename that indicates the input image followed by another line that indicates the output filename (where the coordinates of the detected faces are stored).
 
