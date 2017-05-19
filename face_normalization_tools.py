@@ -14,7 +14,7 @@ import scipy
 import math
 
 sys.path.append("/home/escalafl/workspace4/cuicuilco_MDP3.2/src")
-import imageLoader
+from cuicuilco import imageLoader
 
 def compute_approximate_mouth_coordinates(eye_coordinates):
     """ Given the coordinates of the eyes of a face, the function approximates the position of the mouth.

@@ -16,22 +16,25 @@ import mkl
 import PIL
 from PIL import Image
 import mdp
-import more_nodes
-import patch_mdp
+from cuicuilco import more_nodes
+from cuicuilco import patch_mdp
 
 # import svm as libsvm
-import object_cache as cache
+from cuicuilco import object_cache as cache
 import os
 import sys
 import glob
 import random
-import sfa_libs
-from sfa_libs import (scale_to, distance_squared_Euclidean, str3, wider_1Darray, ndarray_to_string, cutoff)
+from cuicuilco import sfa_libs
+from cuicuilco.sfa_libs import (scale_to, distance_squared_Euclidean, str3, wider_1Darray, ndarray_to_string, cutoff)
 
-import system_parameters
-from imageLoader import *
+from cuicuilco import system_parameters
+from cuicuilco import nonlinear_expansion
+from cuicuilco import gsfa_node
+from cuicuilco import igsfa_node
+from cuicuilco.imageLoader import *
 # import classifiers_regressions as classifiers
-import network_builder
+from cuicuilco import network_builder
 import benchmarking
 # import time
 # from matplotlib.ticker import MultipleLocator
@@ -40,6 +43,18 @@ import string
 import xml_frgc_tools as frgc
 import getopt
 import face_normalization_tools
+
+sys.modules['more_nodes'] = more_nodes
+sys.modules['patch_mdp'] = patch_mdp
+sys.modules['sfa_libs'] = sfa_libs
+sys.modules['system_parameters'] = system_parameters
+sys.modules['network_builder'] = network_builder
+sys.modules['nonlinear_expansion'] = nonlinear_expansion
+sys.modules['gsfa_node'] = gsfa_node
+sys.modules['igsfa_node'] = igsfa_node
+sys.modules['GSFA_node'] = gsfa_node
+### GSFA_node
+
 # from __future__ import print_function
 
 mkl.set_num_threads(12)
