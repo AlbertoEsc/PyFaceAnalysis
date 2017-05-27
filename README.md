@@ -15,6 +15,7 @@ The image format is anything that can be loaded by PIL (e.g., .jpg, .png).
 ## Dependencies
 PyFaceAnalysis requires the following libraries:
 * Modular Toolkit for Data Processing (MDP) version 3.3
+* cuicuilco
 * MKL
 * numexpr
 * pygame
