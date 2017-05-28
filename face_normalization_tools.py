@@ -14,7 +14,7 @@ import scipy
 import math
 
 sys.path.append("/home/escalafl/workspace4/cuicuilco_MDP3.2/src")
-from cuicuilco import imageLoader
+from cuicuilco import image_loader
 
 def compute_approximate_mouth_coordinates(eye_coordinates):
     """ Given the coordinates of the eyes of a face, the function approximates the position of the mouth.
@@ -248,7 +248,7 @@ def normalize_image(filename, coordinates, normalization_method = "eyes_mouth_ar
                     
     #print delta_ang
     if rotation_angle != 0 or True:        
-        im_rotated_shifted = imageLoader.rotate_improved(im_crop_first, rotation_angle, Image.BICUBIC)
+        im_rotated_shifted = image_loader.rotate_improved(im_crop_first, rotation_angle, Image.BICUBIC)
 #    else:
 #        im_rotated_shifted = im_crop_first
 #        print "not rotating"

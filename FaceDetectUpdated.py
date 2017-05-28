@@ -30,11 +30,13 @@ from cuicuilco.sfa_libs import (scale_to, distance_squared_Euclidean, str3, wide
 
 from cuicuilco import system_parameters
 from cuicuilco import nonlinear_expansion
-from cuicuilco import histogram_normalization
+from cuicuilco import histogram_equalization
 from cuicuilco import inversion
 from cuicuilco import gsfa_node
 from cuicuilco import igsfa_node
+from cuicuilco import image_loader
 from cuicuilco.image_loader import *
+
 # import classifiers_regressions as classifiers
 from cuicuilco import network_builder
 import benchmarking
@@ -56,7 +58,7 @@ sys.modules['gsfa_node'] = gsfa_node
 sys.modules['igsfa_node'] = igsfa_node
 sys.modules['GSFA_node'] = gsfa_node
 sys.modules['imageLoader'] = image_loader
-sys.modules['histogram_normalization'] = histogram_normalization
+sys.modules['histogram_equalization'] = histogram_equalization
 sys.modules['inversion'] = inversion
 
 
