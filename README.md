@@ -6,23 +6,21 @@ This software is based on an algorithm called *hierarchical information-preservi
 PyFaceAnalysis has been created to explore the feasibility of constructing hierarchical networks for supervised learning based on the *Slow Feature Analysis* (SFA) algorithm. It is mostly intended for evaluation purposes by researchers. 
 
 ## What types of images are supported?
-Face detection has been trained using mostly indoor images, where the faces are frontal. Still, a few faces with a small rotation angle w.r.t. the vertical axis can be found. The maximum accepted in-plane angle is +/- 22.5 degrees.
+The face detection system has been trained using mostly indoor images, where the faces are frontal. Still, a few faces with a small rotation angle w.r.t. the vertical axis can be found, and the maximum accepted in-plane angle is +/- 22.5 degrees.
 
-Age/Gender/Race estimation has been trained using mug-shots, where the faces are frontal and the illumination is relatively homogeneous (no strong directional light sources).
+The estimation of age, gender, and race has been trained using mug-shots, where the faces are frontal and the illumination is relatively homogeneous (no strong directional light sources). There is limited generalization to other image conditions.
 
-The image format is anything that can be loaded by PIL (e.g., .jpg, .png).
+The image formats that are supported are all of them that can be loaded by PIL (e.g., .jpg, .png).
 
-## Examples
-<img src="sample_analyses/EmmaWatson2.png" width="250"/>
-Image Copyright by Kingsley Huang, 
-License: Creative Commons Atribution-NonCommercial 2.0 Generic (CC BY-NC 2.0), https://creativecommons.org/licenses/by-nc/2.0/
-Original image: https://www.flickr.com/photos/flywithinsun/5946368231/
-Modifications: resizing, face detection, eye detection, and age, gender and race estimation.
+## Examples of analyzed faces 
+<img src="sample_analyses/EmmaWatson2.png" width="400"/> Image Copyright [Kingsley Huang](https://www.flickr.com/photos/flywithinsun/5946368231/) under the Creative Commons Atribution-NonCommercial 2.0 Generic license ([CC BY-NC 2.0](https://creativecommons.org/licenses/by-nc/2.0/)). Modifications: resizing, face detection, eye detection, and age, gender and race estimation.
+
+<img src="sample_analyses/Entrepreneur.png" width="400"/> Image Copyright [IIP Campaigns & Initiatives](https://www.flickr.com/photos/iipcampaigns/17019075412/) under the Creative Commons Atribution-NonCommercial 2.0 Generic license ([CC BY-NC 2.0](https://creativecommons.org/licenses/by-nc/2.0/)). Modifications: resizing, face detection, eye detection, and age, gender and race estimation.
 
 ## Dependencies
 PyFaceAnalysis requires the following libraries:
-* Modular Toolkit for Data Processing (MDP) version 3.3
-* cuicuilco
+* [Modular Toolkit for Data Processing (MDP)](https://github.com/mdp-toolkit/mdp-toolkit) version 3.3
+* [cuicuilco][https://github.com/AlbertoEsc/cuicuilco]
 * MKL
 * numexpr
 * pygame
@@ -41,15 +39,13 @@ Make sure to set the parameter *smallest_face*, which controls the size of the s
   > python -u FaceDetectUpdated.py --smallest_face=0.1 sample_images/TNS-Group.jpg output.txt
 
 The most convenient way to apply the algorithm to several images is to use *batch mode*. A batch file is a text file with the following structure:
-> image1.jpg
-
-> output1.txt
-
-> ...
-
-> imageN.jpg
-
-> outputN.txt
+```
+image1.jpg
+output1.txt
+...
+imageN.jpg
+outputN.txt
+```
 
 Where each line is a filename that indicates the input image followed by another line that indicates the output filename (where the coordinates of the detected faces are stored).
 
@@ -66,14 +62,14 @@ PyFaceAnalysis has been developed by Alberto N. Escalante B. (alberto.escalante@
 
 
 ## Other information
-The system is continuously improving, thus make sure to use the latest version.
+The system is being continuously improving, make sure to use the latest version.
 
-Directories are not created when storing the results, thus output directories should be created on beforehand by the user.
+No new directories are created when storing the results, thus output directories should be created on beforehand by the user.
 
-Bugs/Suggestions/Comments/Questions: please write to alberto.escalante@ini.rub.de or use github!
-I will be glad to help you
+Bugs/suggestions/comments/questions: please write to alberto.escalante@ini.rub.de or use the appropriate github resources.
+I will be glad to help you!
 
-##LICENSE
+## LICENSE
 Licensed under the Apache License, Version 2.0: [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
 
