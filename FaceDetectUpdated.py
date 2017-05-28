@@ -1009,8 +1009,9 @@ for im_number in image_numbers:
         if prescaling_factor > 1.0:
             prescaled_width = int(images[0].size[0] / prescaling_factor)
             prescaled_height = int(images[0].size[1] / prescaling_factor)
-            images[0] = images[0].resize((prescaled_width, prescaled_height),
-                                         Image.BILINEAR)  # #[Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
+            images[0] = images[0].resize((prescaled_width, prescaled_height), Image.NEAREST)
+            #Image.BILINEAR)  # #[Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
+
             images_rgb[0] = images_rgb[0].resize((prescaled_width, prescaled_height), Image.BILINEAR)  # ANTIALIAS
         else:
             prescaling_factor = 1.0

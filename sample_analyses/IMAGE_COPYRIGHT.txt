@@ -1,0 +1,21 @@
+Image: EmmaWatson2.png
+
+Copyright by Kingsley Huang
+
+License: Creative Commons Atribution-NonCommercial 2.0 Generic (CC BY-NC 2.0), https://creativecommons.org/licenses/by-nc/2.0/
+
+Original file: https://www.flickr.com/photos/flywithinsun/5946368231/
+
+Modifications: resizing, face detection, eye detection, and age, gender and race estimation.
+
+##################################################################
+
+Image: Entrepreneur.png
+
+Copyright by IIP Campaigns & Initiatives
+
+License: Creative Commons Atribution-NonCommercial 2.0 Generic (CC BY-NC 2.0), https://creativecommons.org/licenses/by-nc/2.0/
+
+Original file: https://www.flickr.com/photos/iipcampaigns/17019075412/
+
+Modifications: resizing, face detection, eye detection, and age, gender and race estimation.

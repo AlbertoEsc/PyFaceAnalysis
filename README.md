@@ -12,6 +12,13 @@ Age/Gender/Race estimation has been trained using mug-shots, where the faces are
 
 The image format is anything that can be loaded by PIL (e.g., .jpg, .png).
 
+## Examples
+<img src="sample_analyses/EmmaWatson2.png" width="250"/>
+Image Copyright by Kingsley Huang, 
+License: Creative Commons Atribution-NonCommercial 2.0 Generic (CC BY-NC 2.0), https://creativecommons.org/licenses/by-nc/2.0/
+Original image: https://www.flickr.com/photos/flywithinsun/5946368231/
+Modifications: resizing, face detection, eye detection, and age, gender and race estimation.
+
 ## Dependencies
 PyFaceAnalysis requires the following libraries:
 * Modular Toolkit for Data Processing (MDP) version 3.3
@@ -65,3 +72,8 @@ Directories are not created when storing the results, thus output directories sh
 
 Bugs/Suggestions/Comments/Questions: please write to alberto.escalante@ini.rub.de or use github!
 I will be glad to help you
+
+##LICENSE
+Licensed under the Apache License, Version 2.0: [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+
