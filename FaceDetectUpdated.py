@@ -1831,8 +1831,11 @@ for im_number in image_numbers:
         # Left eye only!
         eyesL_box = eyesL_box_orig + 0.0  # FOR DEBUG ONLY!!!
         # print "eyesL_box=",eyesL_box
+        # TODO: Use new normalization method used for eye localization
         eyeL_subimages = extract_subimages_rotate(images, curr_image_indices, eyesL_box, -1 * curr_angles,
-                                                  (eye_subimage_width, eye_subimage_height), interpolation_format)
+                                                  (eye_subimage_width, eye_subimage_height), interpolation_format,
+                                                  contrast_enhance="AgeContrastEnhancement_Avg_Std",
+                                                  obj_avg=0.11, obj_std=0.15)
 
         benchmark.add_task_from_previous_time("Extracted eye patches (L or R)")
 
@@ -1896,7 +1899,9 @@ for im_number in image_numbers:
 
         # print "eyesRhack_box=",eyesRhack_box
         eyeR_subimages = extract_subimages_rotate(images, curr_image_indices, eyesRhack_box, -1 * curr_angles,
-                                                  (eye_subimage_width, eye_subimage_height), interpolation_format)
+                                                  (eye_subimage_width, eye_subimage_height), interpolation_format,
+                                                  contrast_enhance="AgeContrastEnhancement_Avg_Std",
+                                                  obj_avg=0.11, obj_std=0.15)
         benchmark.add_task_from_previous_time("Extracted eye patches (L or R)")
 
         debug = True and False
