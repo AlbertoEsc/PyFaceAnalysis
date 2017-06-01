@@ -20,7 +20,7 @@ The image formats that are supported are all of them that can be loaded by PIL (
 ## Dependencies
 PyFaceAnalysis requires the following libraries:
 * [Modular Toolkit for Data Processing (MDP)](https://github.com/mdp-toolkit/mdp-toolkit) version 3.3
-* [cuicuilco][https://github.com/AlbertoEsc/cuicuilco]
+* [cuicuilco](https://github.com/AlbertoEsc/cuicuilco)
 * MKL
 * numexpr
 * pygame

@@ -2206,7 +2206,7 @@ for im_number in image_numbers:
                                                               add_noise=False, convert_format="L",
                                                               translations_x=age_translations_x,
                                                               translations_y=age_translations_y, trans_sampled=True,
-                                                              rotation=0.0, contrast_enhance=age_contrast_enhance,
+                                                              rotations=0.0, rotate_before_translation=True, contrast_enhance=age_contrast_enhance,
                                                               obj_avgs=0.0,
                                                               obj_stds=age_obj_std, background_type=None,
                                                               color_background_filter=None, subimage_reference_point=0,
