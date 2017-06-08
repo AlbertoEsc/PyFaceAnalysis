@@ -1,6 +1,6 @@
 # PyFaceAnalysis
 PyFaceAnalysis is a system that detects faces and analyzes them by estimating age, race, and gender. 
-This software is based on an algorithm called *hierarchical information-preserving graph-based SFA* (HiGSFA). See the references for furhter details.
+This software is based on an algorithm called *hierarchical information-preserving graph-based SFA* (HiGSFA). See the references for further details.
 
 ## What is PyFaceAnalysis for, and who should use it?
 PyFaceAnalysis has been created to explore the feasibility of constructing hierarchical networks for supervised learning based on the *Slow Feature Analysis* (SFA) algorithm. It is mostly intended for evaluation purposes by researchers. 
@@ -35,7 +35,7 @@ Besides a few standard libraries, including:
 Basic execution:
   > python -u FaceDetectUpdated.py input_image.jpg output_file.txt
 
-Make sure to set the parameter *smallest_face*, which controls the size of the smalles face that can be accepted by the detection algorithm, to achieve good speed and detection rate. 
+Make sure to set the parameter *smallest_face*, which controls the size of the smallest face that can be accepted by the detection algorithm, to achieve good speed and detection rate. 
   > python -u FaceDetectUpdated.py --smallest_face=0.1 sample_images/TNS-Group.jpg output.txt
 
 The most convenient way to apply the algorithm to several images is to use *batch mode*. A batch file is a text file with the following structure:
