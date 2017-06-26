@@ -1,6 +1,6 @@
 import string
 import numpy
-
+from cuicuilco.image_loader import extract_subimages_rotate, images_asarray
 # Returns the eye coordinates in the same scale as the box, already considering correction face_sampling
 # First left eye, then right eye. Notice, left_x > right_x and eye_y < center_y
 # Given approximate box coordinates, corresponding to a box with some face_sampling, approximates the
@@ -405,10 +405,10 @@ def load_networks_from_pipeline(pipeline_filename, cache_obj, networks_base_dir,
             all_data = None
     
         if isinstance(all_data, (list, tuple)):
-            print "Network flow was in a tuple"
+            print "(Network flow was in a tuple)",
             networks.append(all_data[0])  # Keep only the flows
         else:
-            print "Network flow was not in a tuple"
+            print "(Network flow was not in a tuple)",
             networks.append(all_data)  # It is only a flow
         print "done"
     # quit()
@@ -705,3 +705,211 @@ def create_network_plots(plt, network_figures_together, network_types):
         #        quit()
     return p11, p12, p13, p14, p15, p16, p21, p22, p23, p24, p25, p26, p31, p32, p33, p34, p35, p36
 
+
+def load_network_subimages(images, curr_image_indices, curr_subimage_coordinates, curr_angles, subimage_width, subimage_height, interpolation_format, contrast_normalize):
+    # Get arrays
+    print "P",
+
+    # subimages = extract_subimages_rotate_ar_parallel(images, curr_image_indices,
+    # curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height), interpolation_format)
+    subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates,
+                                         -1 * curr_angles, (subimage_width, subimage_height),
+                                         interpolation_format)
+    # subimages_arr = subimages
+    if len(subimages) > 0:
+        subimages_arr = images_asarray(subimages)   
+        # contrast_normalize = True and False 
+        if contrast_normalize:
+            # print "min and max image array intensities are:", subimages_arr.min(), subimages_arr.max()
+            print "Orig mean=", subimages_arr.mean(), " and std=", subimages_arr.std(
+                axis=1).mean(), " min=", subimages_arr.min(axis=1).mean(), " max=", subimages_arr.max(
+                axis=1).mean()
+            image_array_contrast_normalize_avg_std(subimages_arr, 137.5, 0.40 * 255)
+            print "After contrast norm: mean=", subimages_arr.mean(), " and std=", subimages_arr.std(
+                axis=1).mean(), " min=", subimages_arr.min(axis=1).mean(), " max=", subimages_arr.max(
+                axis=1).mean()
+            # quit()
+    else:
+            subimages_arr = numpy.zeros((0,0))
+    return subimages_arr
+
+
+def update_current_subimage_coordinates(network_type, curr_subimage_coordinates, curr_angles, reg_out, regression_width, regression_height, desired_sampling):
+    if network_type == "Disc":
+        pass  # WARNING!
+    elif network_type == "PosX":  # POS_X
+        width = curr_subimage_coordinates[:, 2] - curr_subimage_coordinates[:, 0]
+        reg_out = reg_out * width / regression_width
+        #        print "Regression Output scaled:", reg_out
+        #        print "Correcting coordinates (X)"
+        curr_subimage_coordinates[:, 0] = curr_subimage_coordinates[:, 0] - reg_out  # X0
+        curr_subimage_coordinates[:, 2] = curr_subimage_coordinates[:, 2] - reg_out  # X1
+    elif network_type == "PosY":  # POS_Y
+        height = curr_subimage_coordinates[:, 3] - curr_subimage_coordinates[:, 1]
+        reg_out = reg_out * height / regression_height
+        #        print "Regression Output scaled:", reg_out
+        #        print "Correcting coordinates (Y)"
+        curr_subimage_coordinates[:, 1] = curr_subimage_coordinates[:, 1] - reg_out  # Y0
+        curr_subimage_coordinates[:, 3] = curr_subimage_coordinates[:, 3] - reg_out  # Y1
+    elif network_type == "PAng":  # PAng
+        curr_angles = curr_angles + reg_out  # 0.0 #reg_out ##+ reg_out #THIS SIGN IS NOT CLEAR AT ALL!
+    elif network_type == "Scale":  # SCALE
+        old_width = curr_subimage_coordinates[:, 2] - curr_subimage_coordinates[:, 0]
+        old_height = curr_subimage_coordinates[:, 3] - curr_subimage_coordinates[:, 1]
+        x_center = (curr_subimage_coordinates[:, 2] + curr_subimage_coordinates[:, 0]) / 2.0
+        y_center = (curr_subimage_coordinates[:, 3] + curr_subimage_coordinates[:, 1]) / 2.0
+
+        width = old_width / reg_out * desired_sampling
+        height = old_height / reg_out * desired_sampling
+        #        print "Regression Output scaled:", reg_out
+        #        print "Correcting scale (X)"
+        curr_subimage_coordinates[:, 0] = x_center - width / 2.0
+        curr_subimage_coordinates[:, 2] = x_center + width / 2.0
+        curr_subimage_coordinates[:, 1] = y_center - height / 2.0
+        curr_subimage_coordinates[:, 3] = y_center + height / 2.0
+    else:
+        er = "Network type unknown!!!: ", network_type
+        raise Exception(er)
+        
+    return curr_subimage_coordinates, curr_angles
+    
+def identify_patches_to_discard(network_type, curr_subimage_coordinates, curr_angles, curr_disc, base_side, 
+                                     im_width, im_height, curr_orig_index, orig_subimage_coordinates, orig_angles,  
+                                     max_Dx_diff, max_Dy_diff, tolerance_posxy_deviation, max_scale_radio, min_scale_radio, tolerance_scale_deviation, net_Dang, tolerance_angle_deviation, cut_off_face):   
+    if network_type == "PosX":
+        # out of image
+        out_of_x_borders_images = (curr_subimage_coordinates[:, 0] < 0) |  (curr_subimage_coordinates[:, 2] >= im_width) 
+
+        # too far away horizontally from initial patch
+        subimage_deltas_x = (curr_subimage_coordinates[:, 2] + curr_subimage_coordinates[:, 0]) / 2 - \
+                            (orig_subimage_coordinates[curr_orig_index][:, 2] +
+                             orig_subimage_coordinates[curr_orig_index][:, 0]) / 2
+
+        x_far_images = numpy.abs(subimage_deltas_x) > (max_Dx_diff * tolerance_posxy_deviation)
+        new_wrong_images = x_far_images
+    elif network_type == "PosY":
+        # out of image
+        out_of_borders_images = (curr_subimage_coordinates[:, 1] < 0) | (curr_subimage_coordinates[:, 3] >= im_height)
+
+        # too far away vertically from initial patch
+        subimage_deltas_y = (curr_subimage_coordinates[:, 3] + curr_subimage_coordinates[:, 1]) / 2 - \
+                            (orig_subimage_coordinates[curr_orig_index][:, 3] +
+                             orig_subimage_coordinates[curr_orig_index][:, 1]) / 2
+
+        y_far_images = numpy.abs(subimage_deltas_y) > (max_Dy_diff * tolerance_posxy_deviation)
+        new_wrong_images = y_far_images
+    elif network_type == "PAng":
+        too_rotated_images = (curr_angles > orig_angles[
+            curr_orig_index] + net_Dang * tolerance_angle_deviation) | (curr_angles < orig_angles[
+            curr_orig_index] - net_Dang * tolerance_angle_deviation)
+        new_wrong_images = too_rotated_images
+    elif network_type == "Scale":
+        # too large or small w.r.t. initial patch
+        subimage_magnitudes = ((curr_subimage_coordinates[:, 0:2] -
+                                curr_subimage_coordinates[:, 2:4]) ** 2).sum(axis=1)
+        subimage_sides = numpy.sqrt(subimage_magnitudes)
+        # sqrt(2)/2*orig_diagonal = 1/sqrt(2)*orig_diagonal < subimage_diagonal < sqrt(2)*orig_diagonal ???
+        too_large_small_images = (subimage_sides / base_side > max_scale_radio *
+                                  tolerance_scale_deviation) | (subimage_sides / base_side <
+                                                                min_scale_radio / tolerance_scale_deviation)
+        new_wrong_images = too_large_small_images
+    elif network_type == "Disc":
+        new_wrong_images = curr_disc >= cut_off_face
+    else:
+        er = "Unknown network type:"+str(network_type)
+        raise Exception(er)
+    return new_wrong_images
+
+def identify_patches_to_discard_slow(network_type, curr_subimage_coordinates, curr_angles, curr_disc, base_side, 
+                                     im_width, im_height, curr_orig_index, orig_subimage_coordinates, orig_angles,  
+                                     max_Dx_diff, max_Dy_diff, tolerance_posxy_deviation, max_scale_radio, min_scale_radio, tolerance_scale_deviation, net_Dang, tolerance_angle_deviation, cut_off_face):   
+    if network_type in ["PosX", "PosY", "PAng", "Scale"]:
+        # out of image
+        out_of_borders_images = (curr_subimage_coordinates[:, 0] < 0) | \
+                                (curr_subimage_coordinates[:, 1] < 0) | \
+                                (curr_subimage_coordinates[:, 2] >= im_width) | \
+                                (curr_subimage_coordinates[:, 3] >= im_height)
+
+        # too large or small w.r.t. initial patch
+        subimage_magnitudes = ((curr_subimage_coordinates[:, 0:2] -
+                                curr_subimage_coordinates[:, 2:4]) ** 2).sum(axis=1)
+        subimage_sides = numpy.sqrt(subimage_magnitudes)
+        # sqrt(2)/2*orig_diagonal = 1/sqrt(2)*orig_diagonal < subimage_diagonal < sqrt(2)*orig_diagonal ???
+        too_large_small_images = (subimage_sides / base_side > max_scale_radio *
+                                  tolerance_scale_deviation) | (subimage_sides / base_side <
+                                                                min_scale_radio / tolerance_scale_deviation)
+
+        # too far away horizontally from initial patch
+        subimage_deltas_x = (curr_subimage_coordinates[:, 2] + curr_subimage_coordinates[:, 0]) / 2 - \
+                            (orig_subimage_coordinates[curr_orig_index][:, 2] +
+                             orig_subimage_coordinates[curr_orig_index][:, 0]) / 2
+        subimage_deltas_y = (curr_subimage_coordinates[:, 3] + curr_subimage_coordinates[:, 1]) / 2 - \
+                            (orig_subimage_coordinates[curr_orig_index][:, 3] +
+                             orig_subimage_coordinates[curr_orig_index][:, 1]) / 2
+
+        # too much rotation w.r.t. initial patch
+        too_rotated_images = (curr_angles > orig_angles[
+            curr_orig_index] + net_Dang * tolerance_angle_deviation) | (curr_angles < orig_angles[
+            curr_orig_index] - net_Dang * tolerance_angle_deviation)
+        x_far_images = numpy.abs(subimage_deltas_x) > (max_Dx_diff * tolerance_posxy_deviation)
+        y_far_images = numpy.abs(subimage_deltas_y) > (max_Dy_diff * tolerance_posxy_deviation)
+
+        # new_wrong_images = out_of_borders_images | too_large_small_images | x_far_images |
+        # y_far_images | too_rotated_images
+        new_wrong_images = too_large_small_images | x_far_images | y_far_images | too_rotated_images
+
+        debug_net_discrimination = False
+        if debug_net_discrimination:
+            #                        print "subimage_deltas_x is: ", subimage_deltas_x
+            #                        print "subimage_deltas_y is: ", subimage_deltas_y
+            print "Patch discarded. Wrong x_center is:", (curr_subimage_coordinates[:, 2][x_far_images] +
+                                                          curr_subimage_coordinates[:, 0][x_far_images]) / 2
+            print "Patch discarded. Wrong x_center was:", (orig_subimage_coordinates[:, 2][
+                                                               curr_orig_index[x_far_images]] +
+                                                           orig_subimage_coordinates[:, 0][
+                                                               curr_orig_index[x_far_images]]) / 2
+            print "Patch discarded. Wrong y_center is:", (curr_subimage_coordinates[:, 3][y_far_images] +
+                                                          curr_subimage_coordinates[:, 1][y_far_images]) / 2
+            print "Patch discarded. Wrong y_center was:", (orig_subimage_coordinates[:, 3][
+                                                               curr_orig_index[y_far_images]] +
+                                                           orig_subimage_coordinates[:, 1][
+                                                               curr_orig_index[y_far_images]]) / 2
+            print ("new_wrong_images %d = out_of_borders_images %d + too_large_small_images %d " +
+                   "x_far_images %d + y_far_images %d") % (new_wrong_images.sum(),
+                                                         out_of_borders_images.sum(),
+                                                         too_large_small_images.sum(), x_far_images.sum(),
+                                                         y_far_images.sum())
+        else:
+            pass
+    else:
+        new_wrong_images = curr_disc >= cut_off_face
+    return new_wrong_images
+
+
+def plot_current_subimage_coordinates_angles_confidences(subplot, network_type, show_confidences, display_only_diagonal, im_disp_rgb, orig_colors, curr_orig_index, curr_subimage_coordinates, curr_angles, curr_confidence):
+    if subplot is not None:
+        subplot.imshow(im_disp_rgb, aspect=1.0, interpolation='nearest', origin='upper')
+        # subplot.imshow(im_disp, aspect='auto', interpolation='nearest', origin='upper',
+        #     cmap=mpl.pyplot.cm.gray)
+
+        for j, (x0, y0, x1, y1) in enumerate(curr_subimage_coordinates):
+            color = orig_colors[curr_orig_index[j]]
+            if show_confidences and (network_type == "Disc"):
+                color = (curr_confidence[j], curr_confidence[j], curr_confidence[j])
+                color = (0.25, 0.5, 1.0)
+            if display_only_diagonal:
+                subplot.plot([x0, x1], [y0, y1], color=color)
+            else:
+                # subplot.plot([x0, x1, x1, x0, x0], [y0, y0, y1, y1, y0], color=(1.0,1.0,1.0), linewidth=2)
+                subplot.plot([x0, x1, x1, x0, x0], [y0, y0, y1, y1, y0], color=color, linewidth=2)
+                #        if invalid_subimages[j] == False and False:
+                #        subplot.plot([x0, x1, x1, x0, x0], [y0, y0, y1, y1, y0],
+                #           color=orig_colors[curr_orig_index[j]] )
+                #        if invalid_subimages[j] == False:
+            # subplot.plot([x0, x1], [y0, y1], color=orig_colors[curr_orig_index[j]] )
+            cx = (x0 + x1 - 1) / 2.0
+            cy = (y0 + y1 - 1) / 2.0
+            mag = 0.4 * (x1 - x0)
+            pax = cx + mag * numpy.cos(curr_angles[j] * numpy.pi / 180 + numpy.pi / 2)
+            pay = cy - mag * numpy.sin(curr_angles[j] * numpy.pi / 180 + numpy.pi / 2)
+            subplot.plot([cx, pax], [cy, pay], color=color, linewidth=2)

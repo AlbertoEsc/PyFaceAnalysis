@@ -66,7 +66,7 @@ try:
     import mkl
     mkl.set_num_threads(12)
 except ImportError:
-    print "mkl could not be imported"
+    print "mkl could not be imported, continuing without mkl"
     mkl = None
 
 display_plots = True and False
@@ -452,7 +452,7 @@ if camera_enabled:
 
 if pygame_display:
     screen = pygame.display.set_mode((screen_width, screen_height))
-    pygame.display.set_caption("Pygame/Camera View")
+    pygame.display.set_caption("Pygame display")
     if camera_enabled:
         screen.blit(image, (0, 0))
         pygame.display.update()  # pygame.display.flip()
@@ -605,13 +605,14 @@ for im_number in image_numbers:
 
         orig_colors = numpy.random.uniform(0.0, 1.0, size=(orig_num_subimages, 3))
 
-        curr_num_subimages = orig_num_subimages + 0
-        curr_subimage_coordinates = orig_subimage_coordinates + 0
-        curr_angles = orig_angles + 0
+        curr_num_subimages = orig_num_subimages
+        curr_subimage_coordinates = orig_subimage_coordinates.copy()
+        curr_angles = orig_angles.copy()
         # curr_invalid_subimages = numpy.zeros(curr_num_subimages, dtype='bool')
-        curr_image_indices = orig_image_indices + 0
+        curr_image_indices = orig_image_indices.copy()
         curr_orig_index = numpy.arange(curr_num_subimages)
 
+        # Display box at the position of the previously found face  
         if face_has_been_found and tracked_face and pygame_display:
             b_x0, b_y0, b_x1, b_y1 = orig_subimage_coordinates[0]
             wx = abs(b_x1 - b_x0)
@@ -619,8 +620,9 @@ for im_number in image_numbers:
             pygame.draw.rect(screen, (150, 255, 150), (b_x0, b_y0, wx, wy), 2)
 
         num_plots += 1
+        # Stop creating plots for the current sampling value
         if num_plots > max_num_plots:
-            display_plots = False
+            display_plots = False 
 
         if display_plots or show_final_detection:
             im_disp = numpy.asarray(images[0])
@@ -655,7 +657,8 @@ for im_number in image_numbers:
             network_type = network_types[num_network][0:-1]
             network_serial = int(network_types[num_network][-1])
             interpolation_format = interpolation_formats[network_serial]
-
+            cut_off_face = cut_offs_face[network_serial] # Only used if the network type is Disc
+            
             skip_image_extraction = 0
             skip_feature_extraction = 0
             if num_network > 0:
@@ -669,33 +672,11 @@ for im_number in image_numbers:
                 skip_feature_extraction = 1
 
             if skip_image_extraction == 0:
-                # Get arrays
-                print "P",
-
-                # subimages = extract_subimages_rotate_ar_parallel(images, curr_image_indices,
-                # curr_subimage_coordinates, -1*curr_angles, (subimage_width, subimage_height), interpolation_format)
-                subimages = extract_subimages_rotate(images, curr_image_indices, curr_subimage_coordinates,
-                                                     -1 * curr_angles, (subimage_width, subimage_height),
-                                                     interpolation_format)
-                # subimages_arr = subimages
-                if len(subimages) > 0:
-                    subimages_arr = images_asarray(subimages)   # + 0.0  # # # # # Warning!!!
-                    contrast_normalize = True and False
-                    if contrast_normalize:
-                        # print "min and max image array intensities are:", subimages_arr.min(), subimages_arr.max()
-                        print "Orig mean=", subimages_arr.mean(), " and std=", subimages_arr.std(
-                            axis=1).mean(), " min=", subimages_arr.min(axis=1).mean(), " max=", subimages_arr.max(
-                            axis=1).mean()
-                        image_array_contrast_normalize_avg_std(subimages_arr, 137.5, 0.40 * 255)
-                        print "After contrast norm: mean=", subimages_arr.mean(), " and std=", subimages_arr.std(
-                            axis=1).mean(), " min=", subimages_arr.min(axis=1).mean(), " max=", subimages_arr.max(
-                            axis=1).mean()
-                        # quit()
-                else:
-                    subimages_arr = numpy.zeros((0, 0))
-
+                #TODO: Verify which is the best method for contrast normalization, if used at all
+                subimages_arr = load_network_subimages(images, curr_image_indices, curr_subimage_coordinates, curr_angles, subimage_width, subimage_height, 
+                                                       interpolation_format=interpolation_format, contrast_normalize = False)
             else:
-                print "Reusing existing subimage patches (since network is None or previous net is Disc)"
+                print "Reusing existing subimage patches (since network is None or previous net is of type Disc)"
 
             benchmark.add_task_from_previous_time("Extraction of subimages patches")
 
@@ -704,13 +685,12 @@ for im_number in image_numbers:
             #                for i in range(len(subimages)):
             #                    print "saving patch"
             #                    subimages[i].save("patch_im%03d_PAngle%f.jpg"%(i,curr_angles[i]))
-            reference = "networks"  # "net%d"%num_network
+            benchmark_reference = "networks"  # "net%d"%num_network
             if len(subimages_arr) > 0:
                 if skip_feature_extraction == 0:
-                    t_afterloading = time.time()
                     print "E",
-                    benchmark.update_start_time(reference=reference)
-                    benchmark.set_default_reference(reference)
+                    benchmark.update_start_time(reference=benchmark_reference)
+                    benchmark.set_default_reference(benchmark_reference)
                     sl = networks[num_network].execute(subimages_arr, benchmark=benchmark)
                     benchmark.set_default_reference("a")
 
@@ -740,182 +720,45 @@ for im_number in image_numbers:
                 benchmark.add_task_from_previous_time("Regression")
 
                 # print "reg_out=", reg_out
+                # Use regression output to update the coordinates and angles of current subimages
+                curr_subimage_coordinates, curr_angles = update_current_subimage_coordinates(network_type, curr_subimage_coordinates, curr_angles, 
+                                                                                             reg_out, regression_width, regression_height, desired_sampling = 0.825)
 
-                #                if num_network in [0, 4, 8, 12]:
-                #                    network_type = "discrimination"
-                #                elif num_network in [1, 5, 9]:
-                #                    network_type = "posX"
-                #                elif num_network in [2, 6, 10]:
-                #                    network_type = "posY"
-                #                elif num_network in [3, 7, 11]:
-                #                    network_type = "scale"
+                
+                
+                new_wrong_images = identify_patches_to_discard(network_type, curr_subimage_coordinates, curr_angles, reg_out, 
+                                                                    base_side, im_width, im_height, curr_orig_index, orig_subimage_coordinates, orig_angles,  
+                                                                    max_Dx_diff, max_Dy_diff, tolerance_posxy_deviation, max_scale_radio, min_scale_radio, tolerance_scale_deviation, net_Dang, tolerance_angle_deviation, cut_off_face)   
 
-                if network_type == "Disc":
-                    pass  # WARNING!
-                elif network_type == "PosX":  # POS_X
-                    width = curr_subimage_coordinates[:, 2] - curr_subimage_coordinates[:, 0]
-                    reg_out = reg_out * width / regression_width
-                    #        print "Regression Output scaled:", reg_out
-                    #        print "Correcting coordinates (X)"
-                    curr_subimage_coordinates[:, 0] = curr_subimage_coordinates[:, 0] - reg_out  # X0
-                    curr_subimage_coordinates[:, 2] = curr_subimage_coordinates[:, 2] - reg_out  # X1
-                elif network_type == "PosY":  # POS_Y
-                    height = curr_subimage_coordinates[:, 3] - curr_subimage_coordinates[:, 1]
-                    reg_out = reg_out * height / regression_height
-                    #        print "Regression Output scaled:", reg_out
-                    #        print "Correcting coordinates (Y)"
-                    curr_subimage_coordinates[:, 1] = curr_subimage_coordinates[:, 1] - reg_out  # Y0
-                    curr_subimage_coordinates[:, 3] = curr_subimage_coordinates[:, 3] - reg_out  # Y1
-                elif network_type == "PAng":  # PAng
-                    # curr_angles = curr_angles + reg_out #THIS SIGN IS NOT CLEAR AT ALL!
-                    curr_angles = curr_angles + reg_out  # 0.0 #reg_out ##+ reg_out #THIS SIGN IS NOT CLEAR AT ALL!
-
-                #                    height = curr_subimage_coordinates[:, 3] - curr_subimage_coordinates[:, 1]
-                #                    reg_out = reg_out * height / regression_height
-                #            #        print "Regression Output scaled:", reg_out
-                #            #        print "Correcting coordinates (Y)"
-                #                    curr_subimage_coordinates[:, 1] = curr_subimage_coordinates[:, 1] - reg_out  #Y0
-                #                    curr_subimage_coordinates[:, 3] = curr_subimage_coordinates[:, 3] - reg_out  #Y1
-                elif network_type == "Scale":  # SCALE
-                    old_width = curr_subimage_coordinates[:, 2] - curr_subimage_coordinates[:, 0]
-                    old_height = curr_subimage_coordinates[:, 3] - curr_subimage_coordinates[:, 1]
-                    x_center = (curr_subimage_coordinates[:, 2] + curr_subimage_coordinates[:, 0]) / 2.0
-                    y_center = (curr_subimage_coordinates[:, 3] + curr_subimage_coordinates[:, 1]) / 2.0
-
-                    desired_sampling = 0.825  # 1 or better: (0.55 + 1.1)/2
-
-                    width = old_width / reg_out * desired_sampling
-                    height = old_height / reg_out * desired_sampling
-                    #        print "Regression Output scaled:", reg_out
-                    #        print "Correcting scale (X)"
-                    curr_subimage_coordinates[:, 0] = x_center - width / 2.0
-                    curr_subimage_coordinates[:, 2] = x_center + width / 2.0
-                    curr_subimage_coordinates[:, 1] = y_center - height / 2.0
-                    curr_subimage_coordinates[:, 3] = y_center + height / 2.0
-                else:
-                    print "Network type unknown!!!: ", network_type
-                    quit()
-                    pass  # regression does not need to modify subimage coordinates
-
-                if network_type in ["PosX", "PosY", "PAng", "Scale"]:
-                    # out of image
-                    out_of_borders_images = (curr_subimage_coordinates[:, 0] < 0) | \
-                                            (curr_subimage_coordinates[:, 1] < 0) | \
-                                            (curr_subimage_coordinates[:, 2] >= im_width) | \
-                                            (curr_subimage_coordinates[:, 3] >= im_height)
-
-                    # too large or small w.r.t. initial patch
-                    subimage_magnitudes = ((curr_subimage_coordinates[:, 0:2] -
-                                            curr_subimage_coordinates[:, 2:4]) ** 2).sum(axis=1)
-                    subimage_sides = numpy.sqrt(subimage_magnitudes)
-                    # sqrt(2)/2*orig_diagonal = 1/sqrt(2)*orig_diagonal < subimage_diagonal < sqrt(2)*orig_diagonal ???
-                    too_large_small_images = (subimage_sides / base_side > max_scale_radio *
-                                              tolerance_scale_deviation) | (subimage_sides / base_side <
-                                                                            min_scale_radio / tolerance_scale_deviation)
-
-                    # too far away horizontally from initial pach
-                    subimage_deltas_x = (curr_subimage_coordinates[:, 2] + curr_subimage_coordinates[:, 0]) / 2 - \
-                                        (orig_subimage_coordinates[curr_orig_index][:, 2] +
-                                         orig_subimage_coordinates[curr_orig_index][:, 0]) / 2
-                    subimage_deltas_y = (curr_subimage_coordinates[:, 3] + curr_subimage_coordinates[:, 1]) / 2 - \
-                                        (orig_subimage_coordinates[curr_orig_index][:, 3] +
-                                         orig_subimage_coordinates[curr_orig_index][:, 1]) / 2
-
-                    # too much rotation w.r.t. initial patch
-                    too_rotated_images = (curr_angles > orig_angles[
-                        curr_orig_index] + net_Dang * tolerance_angle_deviation) | (curr_angles < orig_angles[
-                        curr_orig_index] - net_Dang * tolerance_angle_deviation)
-                    x_far_images = numpy.abs(subimage_deltas_x) > (max_Dx_diff * tolerance_posxy_deviation)
-                    y_far_images = numpy.abs(subimage_deltas_y) > (max_Dy_diff * tolerance_posxy_deviation)
-
-                    # new_wrong_images = out_of_borders_images | too_large_small_images | x_far_images |
-                    # y_far_images | too_rotated_images
-                    new_wrong_images = too_large_small_images | x_far_images | y_far_images | too_rotated_images
-
-                    debug_net_discrimination = False
-                    if debug_net_discrimination:
-                        #                        print "subimage_deltas_x is: ", subimage_deltas_x
-                        #                        print "subimage_deltas_y is: ", subimage_deltas_y
-                        print "Patch discarded. Wrong x_center is:", (curr_subimage_coordinates[:, 2][x_far_images] +
-                                                                      curr_subimage_coordinates[:, 0][x_far_images]) / 2
-                        print "Patch discarded. Wrong x_center was:", (orig_subimage_coordinates[:, 2][
-                                                                           curr_orig_index[x_far_images]] +
-                                                                       orig_subimage_coordinates[:, 0][
-                                                                           curr_orig_index[x_far_images]]) / 2
-                        print "Patch discarded. Wrong y_center is:", (curr_subimage_coordinates[:, 3][y_far_images] +
-                                                                      curr_subimage_coordinates[:, 1][y_far_images]) / 2
-                        print "Patch discarded. Wrong y_center was:", (orig_subimage_coordinates[:, 3][
-                                                                           curr_orig_index[y_far_images]] +
-                                                                       orig_subimage_coordinates[:, 1][
-                                                                           curr_orig_index[y_far_images]]) / 2
-                        print ("new_wrong_images %d = out_of_borders_images %d + too_large_small_images %d " +
-                               "x_far_images %d + y_far_images %d") % (new_wrong_images.sum(),
-                                                                     out_of_borders_images.sum(),
-                                                                     too_large_small_images.sum(), x_far_images.sum(),
-                                                                     y_far_images.sum())
-                    else:
-                        pass
-                else:
-                    cut_off_face = cut_offs_face[network_serial]
-                    new_wrong_images = reg_out >= cut_off_face
-                    # print "new_wrong_images",new_wrong_images
-
-                # TODO: Make shure box_side is defined if all boxes are eliminated after the first run
-
+                # TODO: Make sure box_side is defined if all boxes are eliminated after the first run
                 # Update subimage patch information, on temporal variables
                 new_num_subimages = curr_num_subimages - new_wrong_images.sum()
-                new_subimage_coordinates = curr_subimage_coordinates[new_wrong_images == 0] + 0.0
-                new_angles = curr_angles[new_wrong_images == 0] + 0.0
+                new_subimage_coordinates = curr_subimage_coordinates[new_wrong_images == 0].copy()
+                new_angles = curr_angles[new_wrong_images == 0].copy()
                 new_invalid_subimages = numpy.zeros(new_num_subimages, dtype='bool')
-                new_image_indices = curr_image_indices[new_wrong_images == 0] + 0
-                new_orig_index = curr_orig_index[new_wrong_images == 0] + 0
+                new_image_indices = curr_image_indices[new_wrong_images == 0].copy()
+                new_orig_index = curr_orig_index[new_wrong_images == 0].copy()
 
                 if verbose_networks or network_type == "Disc":
                     print "%d / %d valid images" % (new_num_subimages, curr_num_subimages)
                 # Overwrite current values
                 curr_num_subimages = new_num_subimages
-                curr_subimage_coordinates = new_subimage_coordinates.copy()     # + 0.0
+                curr_subimage_coordinates = new_subimage_coordinates     # + 0.0
                 curr_angles = new_angles
                 # curr_invalid_subimages = new_invalid_subimages
                 curr_image_indices = new_image_indices
                 curr_orig_index = new_orig_index
-                sl = sl[new_wrong_images == 0] + 0  # .copy()
-                subimages_arr = subimages_arr[new_wrong_images == 0, :] + 0
+                sl = sl[new_wrong_images == 0].copy()
+                subimages_arr = subimages_arr[new_wrong_images == 0, :].copy()
 
                 if network_type == "Disc":
-                    curr_confidence = reg_out[new_wrong_images == 0] + 0
+                    curr_confidence = reg_out[new_wrong_images == 0].copy()
 
                 benchmark.add_task_from_previous_time("Adjusted according to regression")
 
+                
                 subplot = subplots[num_network]
-                if subplot is not None:
-                    subplot.imshow(im_disp_rgb, aspect=1.0, interpolation='nearest', origin='upper')
-                    # subplot.imshow(im_disp, aspect='auto', interpolation='nearest', origin='upper',
-                    #     cmap=mpl.pyplot.cm.gray)
-
-                    for j, (x0, y0, x1, y1) in enumerate(curr_subimage_coordinates):
-                        color = orig_colors[curr_orig_index[j]]
-                        if show_confidences and (network_type == "Disc"):
-                            color = (curr_confidence[j], curr_confidence[j], curr_confidence[j])
-                            color = (0.25, 0.5, 1.0)
-                        if display_only_diagonal:
-                            subplot.plot([x0, x1], [y0, y1], color=color)
-                        else:
-                            # subplot.plot([x0, x1, x1, x0, x0], [y0, y0, y1, y1, y0], color=(1.0,1.0,1.0), linewidth=2)
-                            subplot.plot([x0, x1, x1, x0, x0], [y0, y0, y1, y1, y0], color=color, linewidth=2)
-                            #        if invalid_subimages[j] == False and False:
-                            #        subplot.plot([x0, x1, x1, x0, x0], [y0, y0, y1, y1, y0],
-                            #           color=orig_colors[curr_orig_index[j]] )
-                            #        if invalid_subimages[j] == False:
-                        # subplot.plot([x0, x1], [y0, y1], color=orig_colors[curr_orig_index[j]] )
-                        cx = (x0 + x1 - 1) / 2.0
-                        cy = (y0 + y1 - 1) / 2.0
-                        mag = 0.4 * (x1 - x0)
-                        pax = cx + mag * numpy.cos(curr_angles[j] * numpy.pi / 180 + numpy.pi / 2)
-                        pay = cy - mag * numpy.sin(curr_angles[j] * numpy.pi / 180 + numpy.pi / 2)
-                        subplot.plot([cx, pax], [cy, pay], color=color, linewidth=2)
-
-                        #    print "subimage_coordinates", subimage_coordinates
+                plot_current_subimage_coordinates_angles_confidences(subplot, network_type, show_confidences, display_only_diagonal, im_disp_rgb, orig_colors, curr_orig_index, curr_subimage_coordinates, curr_angles, curr_confidence)
                 benchmark.add_task_from_previous_time("Created network plot")
 
                 # # print "Done loading subimages_train: %d Samples"%len(subimages_train)
