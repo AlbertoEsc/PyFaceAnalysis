@@ -180,6 +180,12 @@ image_information_net, image_information_eye, image_information_age, num_network
                                                                                                                                         networks_base_dir, classifiers_base_dir,
                                                                                                                                         verbose_pipeline,
                                                                                                                                         verbose_networks)    
+# for i in range(num_networks):
+#     if network_types[i][0:-1] == "Disc":
+#         print "Description of discriminative network %d"%i
+#         more_nodes.describe_flow(networks[i])
+# quit()
+
 benchmark.add_task_from_previous_time("Loading of all networks and classifiers")
     
 net_Dx, net_Dy, net_Dang, net_mins, net_maxs, subimage_width, subimage_height, regression_width, regression_height = image_information_net
@@ -680,11 +686,11 @@ for im_number in image_numbers:
 
             benchmark.add_task_from_previous_time("Extraction of subimages patches")
 
-            #            if num_network == num_networks-3: #last network before eye detection networks
-            #                print "curr_angles=", curr_angles
-            #                for i in range(len(subimages)):
-            #                    print "saving patch"
-            #                    subimages[i].save("patch_im%03d_PAngle%f.jpg"%(i,curr_angles[i]))
+            # if num_network == num_networks-3: #last network before eye detection networks
+            #     print "curr_angles=", curr_angles
+            #     print "saving patches"
+            #     for i in range(len(subimages)):
+            #         subimages[i].save("patch_im%03d_PAngle%f.jpg"%(i,curr_angles[i]))
             benchmark_reference = "networks"  # "net%d"%num_network
             if len(subimages_arr) > 0:
                 if skip_feature_extraction == 0:
@@ -694,7 +700,6 @@ for im_number in image_numbers:
                     sl = networks[num_network].execute(subimages_arr, benchmark=benchmark)
                     benchmark.set_default_reference("a")
 
-                    # sl = networks[num_network].execute(subimages_arr, benchmark=benchmark)
                     if verbose_networks:
                         print "Network %d processed all subimages" % num_network
                 else:
@@ -936,37 +941,7 @@ for im_number in image_numbers:
             benchmark.add_task_from_previous_time("Saving centered face patches")
 
         if save_normalized_face_detections:
-            print "Saving normalized face detections"
-            # Parameters used to emulate face normalization (for pose, not age!)
-            normalization_method = "eyes_inferred-mouth_area"
-            centering_mode = "mid_eyes_inferred-mouth"
-            rotation_mode = "EyeLineRotation"
-            normalized_face_detections_dir = "normalized_face_detections/"
-            prefix = "EyeN"
-            num_tries = 1
-            allow_random_background = False
-            out_size = (256, 192)
-            convert_format = "L"
-            integer_rotation_center = True
-
-            for i, box_coords in enumerate(curr_subimage_coordinates):
-                eyes_coords_orig_app, _, _ = compute_approximate_eye_boxes_coordinates(box_coords, face_sampling=0.825,
-                                                                                       eye_sampling=2.3719,
-                                                                                       rot_angle=curr_angles[i])
-
-                float_coords = [eyes_coords_orig_app[0], eyes_coords_orig_app[1], eyes_coords_orig_app[2],
-                                eyes_coords_orig_app[3], 0.0, 0.0]
-                im2 = face_normalization_tools.normalize_image(None, float_coords,
-                                                               normalization_method=normalization_method,
-                                                               centering_mode=centering_mode,
-                                                               rotation_mode=rotation_mode,
-                                                               integer_rotation_center=integer_rotation_center,
-                                                               out_size=out_size, convert_format=convert_format,
-                                                               verbose=False,
-                                                               allow_random_background=allow_random_background,
-                                                               image=images[0])
-                random_number = numpy.random.randint(1000000)
-                im2.save(normalized_face_detections_dir + prefix + "%06d.jpg" % random_number)
+            save_pose_normalized_face_detections(images[0], curr_subimage_coordinates, curr_angles)
             benchmark.add_task_from_previous_time("Saving normalized face detections")
 
         # TODO: POSITION OF EYES SHOULD NOW BE ROTATED ACCORDING TO FACE ANGLE IN PLANE
@@ -1017,138 +992,21 @@ for im_number in image_numbers:
 
         # curr_angles = curr_angles * 0.0 #DEBUGG!!!
 
-        eye_xy_too_far_images = numpy.zeros(len(curr_image_indices), dtype=bool)
-        # Left eye only!
-        eyesL_box = eyesL_box_orig + 0.0  # FOR DEBUG ONLY!!!
-        # print "eyesL_box=",eyesL_box
-        # TODO: Use new normalization method used for eye localization
-        eyeL_subimages = extract_subimages_rotate(images, curr_image_indices, eyesL_box, -1 * curr_angles,
-                                                  (eye_subimage_width, eye_subimage_height), interpolation_format,
-                                                  contrast_enhance="AgeContrastEnhancement_Avg_Std",
-                                                  obj_avg=0.11, obj_std=0.15)
+        eyesL_box, eyeL_xy_too_far_images = find_Left_eyes(images, curr_image_indices, curr_angles, eyesL_box_orig, 
+                                                           eye_subimage_width, eye_subimage_height, benchmark, num_networks, 
+                                                           network_types, networks, classifiers, eye_regression_width, 
+                                                           eye_regression_height, interpolation_format, 
+                                                           contrast_enhance="AgeContrastEnhancement_Avg_Std", obj_avg=0.11, 
+                                                           obj_std=0.15, tolerance_xy_eye = 9.0 )        
 
-        benchmark.add_task_from_previous_time("Extracted eye patches (L or R)")
+        eyesR_box, eyeR_xy_too_far_images = find_Right_eyes(images, curr_image_indices, curr_angles, eyesR_box_orig, 
+                                                            eye_subimage_width, eye_subimage_height, benchmark, num_networks,
+                                                            network_types, networks, classifiers, eye_regression_width, 
+                                                            eye_regression_height, interpolation_format, 
+                                                            contrast_enhance="AgeContrastEnhancement_Avg_Std", obj_avg=0.11, 
+                                                            obj_std=0.15, tolerance_xy_eye = 9.0 )
 
-        debug = True and False
-        if debug:
-            for i in range(len(eyeL_subimages)):
-                print "saving eyeL patch"
-                eyeL_subimages[i].save("saved_patches/eyeL_patch_im%+03d_PAngle%03.3f.jpg" % (i, curr_angles[i]))
-
-        benchmark.add_task_from_previous_time("Saved eye patches (if enabled)")
-
-        if len(eyeL_subimages) > 0:
-            for num_network in [num_networks - 5, num_networks - 4]:
-                subimages_arr = images_asarray(eyeL_subimages) + 0.0
-                sl = networks[num_network].execute(subimages_arr, benchmark=None)
-                benchmark.add_task_from_previous_time("Extracted eye features (L or R)")
-
-                # print "Network %d processed all subimages"%(num_networks-2)
-                reg_num_signals = classifiers[num_network].input_dim
-                avg_labels = classifiers[num_network].avg_labels
-                print "avg_labels=", avg_labels
-                reg_out = classifiers[num_network].regression(sl[:, 0:reg_num_signals], avg_labels)
-                print "reg_out_crude:", reg_out
-                eye_xy_too_far_images |= numpy.abs(reg_out) >= 9.0  # 9.0
-
-                benchmark.add_task_from_previous_time("Regression eye position (L or R)")
-
-                if network_types[num_network] == "EyeLX":  # POS_X
-                    # print "EyeLX"
-                    eyes_box_width = numpy.abs(eyesL_box[:, 2] - eyesL_box[:, 0])
-                    reg_out_x = (reg_out / 2.3719) * eyes_box_width / eye_regression_width
-                    # reg_out_x = reg_out * eyes_box_width / eye_regression_width / 0.94875
-                elif network_types[num_network] == "EyeLY":  # POS_Y
-                    # print "EyeLY"
-                    eyes_box_height = numpy.abs(eyesL_box[:, 3] - eyesL_box[:, 1])
-                    reg_out_y = (reg_out / 2.3719) * eyes_box_width / eye_regression_width
-                    # reg_out_y = reg_out * eyes_box_height / eye_regression_height / 0.94875
-                else:
-                    print "Unknown network type! (expecting either EyeLX or EyeLY)", network_types[num_network]
-                    quit()
-
-            rot_angle_radian = -1 * curr_angles * numpy.pi / 180
-            eyesL_dx = reg_out_x * numpy.cos(rot_angle_radian) - reg_out_y * numpy.sin(rot_angle_radian)
-            eyesL_dy = reg_out_y * numpy.cos(rot_angle_radian) + reg_out_x * numpy.sin(rot_angle_radian)
-
-            eyesL_box[:, 0] = eyesL_box[:, 0] - eyesL_dx  # X0
-            eyesL_box[:, 2] = eyesL_box[:, 2] - eyesL_dx  # X1
-            # # # print "left eye, X reg_out final=", reg_out
-            eyesL_box[:, 1] = eyesL_box[:, 1] - eyesL_dy  # Y0
-            eyesL_box[:, 3] = eyesL_box[:, 3] - eyesL_dy  # Y1
-            # # # print "left eye, Y reg_out final=", reg_out
-            benchmark.add_task_from_previous_time("Adjusted eye coordinates accounting for rotation angle (L or R)")
-
-            print "LE found *********************************************************************"
-
-        # Right eye only!
-        # Swap horizontal coordinates
-        eyesRhack_box = eyesR_box_orig + 0.0  # FOR DEBUG ONLY
-        eyesRhack_box[:, 0] = eyesR_box_orig[:, 2]
-        eyesRhack_box[:, 2] = eyesR_box_orig[:, 0]
-
-        # print "eyesRhack_box=",eyesRhack_box
-        eyeR_subimages = extract_subimages_rotate(images, curr_image_indices, eyesRhack_box, -1 * curr_angles,
-                                                  (eye_subimage_width, eye_subimage_height), interpolation_format,
-                                                  contrast_enhance="AgeContrastEnhancement_Avg_Std",
-                                                  obj_avg=0.11, obj_std=0.15)
-        benchmark.add_task_from_previous_time("Extracted eye patches (L or R)")
-
-        debug = True and False
-        if debug:
-            for i in range(len(eyeR_subimages)):
-                print "saving eyeR patch"
-                eyeR_subimages[i].save("saved_patches/eyeRRpatch_im%+03d_PAngle%03.3f.jpg" % (i, curr_angles[i]))
-        benchmark.add_task_from_previous_time("Saved eye patches (if enabled)")
-
-        if len(eyeR_subimages) > 0:
-            for num_network in [num_networks - 5, num_networks - 4]:
-                # eyeR_subimages = extract_subimages_basic(images, curr_image_indices, eyesRhack_box,
-                # (eye_subimage_width, eye_subimage_height) )
-                subimages_arr = images_asarray(eyeR_subimages) + 0.0
-                sl = networks[num_network].execute(subimages_arr, benchmark=None)
-                benchmark.add_task_from_previous_time("Extracted eye features (L or R)")
-
-                # print "Network %d processed all subimages"%(num_networks-2)
-                reg_num_signals = classifiers[num_network].input_dim
-                avg_labels = classifiers[num_network].avg_labels
-                reg_out = classifiers[num_network].regression(sl[:, 0:reg_num_signals], avg_labels)
-                print "reg_out_crude:", reg_out
-                benchmark.add_task_from_previous_time("Regression eye position (L or R)")
-
-                eye_xy_too_far_images |= numpy.abs(reg_out) >= 9.0  # 9.0
-                if network_types[num_network] == "EyeLX":  # POS_X
-                    # print "EyeLX"
-                    eyes_box_width = numpy.abs(eyesRhack_box[:, 2] - eyesRhack_box[:, 0])
-                    reg_out_x = (reg_out / 2.3719) * eyes_box_width / eye_regression_width
-                    # reg_out_x = reg_out * eyes_box_width / eye_regression_width * 0.94875 #PREVIOUS WORKING VERSION
-                elif network_types[num_network] == "EyeLY":  # POS_Y
-                    # print "EyeLY"
-                    eyes_box_height = numpy.abs(eyesRhack_box[:, 3] - eyesRhack_box[:, 1])
-                    reg_out_y = (reg_out / 2.3719) * eyes_box_width / eye_regression_width
-                    # reg_out_y = reg_out * eyes_box_height / eye_regression_height * 0.94875
-                    print "right eye, Y reg_out final=", reg_out
-                else:
-                    print "Unknown network type!", network_types[num_network]
-                    quit()
-            print "RE found *********************************************************************"
-
-            rot_angle_radian = curr_angles * numpy.pi / 180
-            eyesR_dx = reg_out_x * numpy.cos(rot_angle_radian) - reg_out_y * numpy.sin(rot_angle_radian)
-            eyesR_dy = reg_out_y * numpy.cos(rot_angle_radian) + reg_out_x * numpy.sin(rot_angle_radian)
-
-            eyesRhack_box[:, 0] = eyesRhack_box[:, 0] + eyesR_dx  # X0
-            eyesRhack_box[:, 2] = eyesRhack_box[:, 2] + eyesR_dx  # X1
-            print "right eye, X reg_out final=", reg_out
-            eyesRhack_box[:, 1] = eyesRhack_box[:, 1] - eyesR_dy  # Y0
-            eyesRhack_box[:, 3] = eyesRhack_box[:, 3] - eyesR_dy  # Y1
-
-            benchmark.add_task_from_previous_time("Adjusted eye coordinates accounting for rotation angle (L or R)")
-
-        # Undo horizontal swap of coordinates
-        eyesR_box = eyesRhack_box + 0.0
-        eyesR_box[:, 0] = eyesRhack_box[:, 2]
-        eyesR_box[:, 2] = eyesRhack_box[:, 0]
+        eye_xy_too_far_images = eyeL_xy_too_far_images | eyeR_xy_too_far_images
 
         # Update both eye coordinates (first one was already updated anyway)
         eyesL_coords = (eyesL_box[:, 0:2] + eyesL_box[:, 2:4]) / 2.0
@@ -1330,136 +1188,138 @@ for im_number in image_numbers:
         detected_faces_eyes_confidences_purgued), detected_faces_eyes_confidences_purgued
 
     if estimate_age or estimate_race or estimate_gender:
-        # Parameters used to emulate face normalization
-        normalization_method = "eyes_inferred-mouth_areaZ"
-        centering_mode = "mid_eyes_inferred-mouth"
-        rotation_mode = "EyeLineRotation"
-        allow_random_background = False
-        out_size = (256, 260)
-        age_image_width = out_size[0]
-        age_image_height = out_size[1]
-        integer_rotation_center = True
-
-        # Parameters used to emulate image loading (load_data_from_sSeq)
-        age_base_scale = 1.14
-        # # # # age_scale_offset = 0.00 # 0.08 0.04
-
-        age_obj_std_base = 0.16  # ** 0.16
-
-        reduction_factor = 160.0 / 96  # (affects only sampling, subimage size, and translations)
-        age_sampling = age_base_scale * reduction_factor
-        age_pre_mirroring = "none"
-        age_contrast_enhance = "AgeContrastEnhancement_Avg_Std"
-        age_obj_avg_std = 0.0
-        age_obj_std = age_obj_std_base
-
-        age_subimage_first_row = age_image_height / 2.0 - age_subimage_height * age_sampling / 2.0
-        age_subimage_first_column = age_image_width / 2.0 - age_subimage_width * age_sampling / 2.0
-        age_translations_x = 0.0 / reduction_factor
-        age_translations_y = -6.0 / reduction_factor
-
-        # 1)Extract face patches (usually 96x96, centered according to the eye positions)
-        num_faces_found = len(detected_faces_eyes_confidences_purgued)
-        age_estimates = numpy.zeros(num_faces_found)
-        age_stds = numpy.zeros(num_faces_found)
-        race_estimates = 10 * numpy.ones(num_faces_found)
-        gender_estimates = 10 * numpy.ones(num_faces_found)
-
-        benchmark.add_task_from_previous_time("Prepared for age, gender, and race estimation")
-
-        for j, box_eyes_coords_confidence in enumerate(detected_faces_eyes_confidences_purgued):
-            # A) Generate normalized image
-            # contents: eyeL_x, eyeL_y, eyeR_x, eyeR_y, mouth_x, mouth_y
-            benchmark.update_start_time()
-            float_coords = [box_eyes_coords_confidence[4], box_eyes_coords_confidence[5], box_eyes_coords_confidence[6],
-                            box_eyes_coords_confidence[7], 0.0, 0.0]
-            im2 = face_normalization_tools.normalize_image(None, float_coords,
-                                                           normalization_method=normalization_method,
-                                                           centering_mode=centering_mode,
-                                                           rotation_mode=rotation_mode,
-                                                           integer_rotation_center=integer_rotation_center,
-                                                           out_size=out_size, convert_format="L",
-                                                           verbose=False,
-                                                           allow_random_background=allow_random_background,
-                                                           image=images[0])
-            benchmark.add_task_from_previous_time("Age/race/gender: computed normalized image")
-
-            # # print im2
-            # # print type(im2)
-            # # print isinstance(im2, numpy.ndarray)
-            # # print isinstance(im2, Image.Image)
-            # B)Extract actual patches
-            age_subimages_arr = load_image_data_monoprocessor(image_files=["nofile"], image_array=im2,
-                                                              image_width=age_image_width,
-                                                              image_height=age_image_height,
-                                                              subimage_width=age_subimage_width,
-                                                              subimage_height=age_subimage_height,
-                                                              pre_mirroring_flags=False, pixelsampling_x=age_sampling,
-                                                              pixelsampling_y=age_sampling,
-                                                              subimage_first_row=age_subimage_first_row,
-                                                              subimage_first_column=age_subimage_first_column,
-                                                              add_noise=False, convert_format="L",
-                                                              translations_x=age_translations_x,
-                                                              translations_y=age_translations_y, trans_sampled=True,
-                                                              rotations=0.0, rotate_before_translation=True, contrast_enhance=age_contrast_enhance,
-                                                              obj_avgs=0.0,
-                                                              obj_stds=age_obj_std, background_type=None,
-                                                              color_background_filter=None, subimage_reference_point=0,
-                                                              verbose=False)
-
-            benchmark.add_task_from_previous_time("Age/race/gender: extracted image array")
-
-            im_raw = numpy.reshape(age_subimages_arr[0], (96, 96))
-            im = scipy.misc.toimage(im_raw, mode="L")
-            im.save("ImageForAgeEstimation%03d.jpg" % number_saved_image_age_estimation)
-            number_saved_image_age_estimation += 1
-            # 2)Apply the age estimation network
-            num_network = num_networks - 3
-            sl = networks[num_network].execute(age_subimages_arr, benchmark=None)
-            benchmark.add_task_from_previous_time("Age/race/gender: feature extraction")
-
-            if estimate_age:
-                reg_num_signals = classifiers[num_network].input_dim
-                avg_labels = classifiers[num_network].avg_labels
-                reg_out, std_out = classifiers[num_network].regression(sl[:, 0:reg_num_signals], avg_labels,
-                                                                       estimate_std=True)
-                benchmark.add_task_from_previous_time("Computed age regression")
-
-                age_estimates[j] = reg_out[0]
-                age_stds[j] = std_out[0]
-                print "age estimation:", reg_out[0], "+/-", std_out[0]
-            if estimate_race:
-                num_network = num_networks - 2
-                reg_num_signals = classifiers[num_network].input_dim
-                avg_labels = classifiers[num_network].avg_labels
-                # reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
-                reg_out = classifiers[num_network].regression(sl[:, 0:reg_num_signals], avg_labels)
-                benchmark.add_task_from_previous_time("Computed race classification")
-
-                race_estimates[j] = reg_out[0]
-                print "race estimation:", reg_out[0]
-            if estimate_gender:
-                num_network = num_networks - 1
-                reg_num_signals = classifiers[num_network].input_dim
-                avg_labels = classifiers[num_network].avg_labels
-                # reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
-                reg_out = classifiers[num_network].regression(sl[:, 0:reg_num_signals], avg_labels)
-                benchmark.add_task_from_previous_time("Computed gender classification")
-
-                gender_estimates[j] = reg_out[0]
-                print "gender estimation:", reg_out[0]
-        # 3)Interpret the results
-        gender_confidences = numpy.abs(gender_estimates)
-        race_confidences = numpy.abs(race_estimates) / 2.0
-
-        gender_estimates = map_real_gender_labels_to_strings(gender_estimates, long_text=True)
-        race_estimates = map_real_race_labels_to_strings(race_estimates, long_text=True)
-        print "Age estimates:", age_estimates
-        print "Age stds: ", age_stds
-        print "Race estimates:", race_estimates
-        print "Race confidences:", race_confidences
-        print "Gender estimates:", gender_estimates
-        print "Gender confidences:", gender_confidences
+        number_saved_image_age_estimation, age_estimates, age_stds, race_estimates, gender_estimates = estimate_age_race_gender(image, detected_faces_eyes_confidences_purgued, benchmark, number_saved_image_age_estimation, age_subimage_width, age_subimage_height, num_networks, networks, classifiers, estimate_age=True, estimate_race=True, estimate_gender=True, verbose=True)
+       
+# #         # Parameters used to emulate face normalization
+# #         normalization_method = "eyes_inferred-mouth_areaZ"
+# #         centering_mode = "mid_eyes_inferred-mouth"
+# #         rotation_mode = "EyeLineRotation"
+# #         allow_random_background = False
+# #         out_size = (256, 260)
+# #         age_image_width = out_size[0]
+# #         age_image_height = out_size[1]
+# #         integer_rotation_center = True
+# # 
+# #         # Parameters used to emulate image loading (load_data_from_sSeq)
+# #         age_base_scale = 1.14
+# #         # # # # age_scale_offset = 0.00 # 0.08 0.04
+# # 
+# #         age_obj_std_base = 0.16  # ** 0.16
+# # 
+# #         reduction_factor = 160.0 / 96  # (affects only sampling, subimage size, and translations)
+# #         age_sampling = age_base_scale * reduction_factor
+# #         age_pre_mirroring = "none"
+# #         age_contrast_enhance = "AgeContrastEnhancement_Avg_Std"
+# #         age_obj_avg_std = 0.0
+# #         age_obj_std = age_obj_std_base
+# # 
+# #         age_subimage_first_row = age_image_height / 2.0 - age_subimage_height * age_sampling / 2.0
+# #         age_subimage_first_column = age_image_width / 2.0 - age_subimage_width * age_sampling / 2.0
+# #         age_translations_x = 0.0 / reduction_factor
+# #         age_translations_y = -6.0 / reduction_factor
+# # 
+# #         # 1)Extract face patches (usually 96x96, centered according to the eye positions)
+# #         num_faces_found = len(detected_faces_eyes_confidences_purgued)
+# #         age_estimates = numpy.zeros(num_faces_found)
+# #         age_stds = numpy.zeros(num_faces_found)
+# #         race_estimates = 10 * numpy.ones(num_faces_found)
+# #         gender_estimates = 10 * numpy.ones(num_faces_found)
+# # 
+# #         benchmark.add_task_from_previous_time("Prepared for age, gender, and race estimation")
+# # 
+# #         for j, box_eyes_coords_confidence in enumerate(detected_faces_eyes_confidences_purgued):
+# #             # A) Generate normalized image
+# #             # contents: eyeL_x, eyeL_y, eyeR_x, eyeR_y, mouth_x, mouth_y
+# #             benchmark.update_start_time()
+# #             float_coords = [box_eyes_coords_confidence[4], box_eyes_coords_confidence[5], box_eyes_coords_confidence[6],
+# #                             box_eyes_coords_confidence[7], 0.0, 0.0]
+# #             im2 = face_normalization_tools.normalize_image(None, float_coords,
+# #                                                            normalization_method=normalization_method,
+# #                                                            centering_mode=centering_mode,
+# #                                                            rotation_mode=rotation_mode,
+# #                                                            integer_rotation_center=integer_rotation_center,
+# #                                                            out_size=out_size, convert_format="L",
+# #                                                            verbose=False,
+# #                                                            allow_random_background=allow_random_background,
+# #                                                            image=images[0])
+# #             benchmark.add_task_from_previous_time("Age/race/gender: computed normalized image")
+# # 
+# #             # # print im2
+# #             # # print type(im2)
+# #             # # print isinstance(im2, numpy.ndarray)
+# #             # # print isinstance(im2, Image.Image)
+# #             # B)Extract actual patches
+# #             age_subimages_arr = load_image_data_monoprocessor(image_files=["nofile"], image_array=im2,
+# #                                                               image_width=age_image_width,
+# #                                                               image_height=age_image_height,
+# #                                                               subimage_width=age_subimage_width,
+# #                                                               subimage_height=age_subimage_height,
+# #                                                               pre_mirroring_flags=False, pixelsampling_x=age_sampling,
+# #                                                               pixelsampling_y=age_sampling,
+# #                                                               subimage_first_row=age_subimage_first_row,
+# #                                                               subimage_first_column=age_subimage_first_column,
+# #                                                               add_noise=False, convert_format="L",
+# #                                                               translations_x=age_translations_x,
+# #                                                               translations_y=age_translations_y, trans_sampled=True,
+# #                                                               rotations=0.0, rotate_before_translation=True, contrast_enhance=age_contrast_enhance,
+# #                                                               obj_avgs=0.0,
+# #                                                               obj_stds=age_obj_std, background_type=None,
+# #                                                               color_background_filter=None, subimage_reference_point=0,
+# #                                                               verbose=False)
+# # 
+# #             benchmark.add_task_from_previous_time("Age/race/gender: extracted image array")
+# # 
+# #             im_raw = numpy.reshape(age_subimages_arr[0], (96, 96))
+# #             im = scipy.misc.toimage(im_raw, mode="L")
+# #             im.save("ImageForAgeEstimation%03d.jpg" % number_saved_image_age_estimation)
+# #             number_saved_image_age_estimation += 1
+# #             # 2)Apply the age estimation network
+# #             num_network = num_networks - 3
+# #             sl = networks[num_network].execute(age_subimages_arr, benchmark=None)
+# #             benchmark.add_task_from_previous_time("Age/race/gender: feature extraction")
+# # 
+# #             if estimate_age:
+# #                 reg_num_signals = classifiers[num_network].input_dim
+# #                 avg_labels = classifiers[num_network].avg_labels
+# #                 reg_out, std_out = classifiers[num_network].regression(sl[:, 0:reg_num_signals], avg_labels,
+# #                                                                        estimate_std=True)
+# #                 benchmark.add_task_from_previous_time("Computed age regression")
+# # 
+# #                 age_estimates[j] = reg_out[0]
+# #                 age_stds[j] = std_out[0]
+# #                 print "age estimation:", reg_out[0], "+/-", std_out[0]
+# #             if estimate_race:
+# #                 num_network = num_networks - 2
+# #                 reg_num_signals = classifiers[num_network].input_dim
+# #                 avg_labels = classifiers[num_network].avg_labels
+# #                 # reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
+# #                 reg_out = classifiers[num_network].regression(sl[:, 0:reg_num_signals], avg_labels)
+# #                 benchmark.add_task_from_previous_time("Computed race classification")
+# # 
+# #                 race_estimates[j] = reg_out[0]
+# #                 print "race estimation:", reg_out[0]
+# #             if estimate_gender:
+# #                 num_network = num_networks - 1
+# #                 reg_num_signals = classifiers[num_network].input_dim
+# #                 avg_labels = classifiers[num_network].avg_labels
+# #                 # reg_out = classifiers[num_network].label(sl[:,0:reg_num_signals])
+# #                 reg_out = classifiers[num_network].regression(sl[:, 0:reg_num_signals], avg_labels)
+# #                 benchmark.add_task_from_previous_time("Computed gender classification")
+# # 
+# #                 gender_estimates[j] = reg_out[0]
+# #                 print "gender estimation:", reg_out[0]
+# #         # 3)Interpret the results
+# #         gender_confidences = numpy.abs(gender_estimates)
+# #         race_confidences = numpy.abs(race_estimates) / 2.0
+# # 
+# #         gender_estimates = map_real_gender_labels_to_strings(gender_estimates, long_text=True)
+# #         race_estimates = map_real_race_labels_to_strings(race_estimates, long_text=True)
+# #         print "Age estimates:", age_estimates
+# #         print "Age stds: ", age_stds
+# #         print "Race estimates:", race_estimates
+# #         print "Race confidences:", race_confidences
+# #         print "Gender estimates:", gender_estimates
+# #         print "Gender confidences:", gender_confidences
     if track_single_face:
         if len(detected_faces_eyes_confidences_purgued) > 0:
             face_eyes_coords = detected_faces_eyes_confidences_purgued[0]
