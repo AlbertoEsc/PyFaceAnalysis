@@ -121,42 +121,42 @@ def false_rejection_rate(faces_wrongly_rejected, total_faces):
 
 # TODO:USE SCORES TO SEE WHICH DETECTIONS ARE RETAINED AND WHICH ELIMINATED
 # Detection confidence: 0.0=most likely a detection, 1.0=unlikely a detection
-def purgue_detected_faces_eyes_confidence(detected_faces_eyes_confidences, weight_confidences_by_area=True):
+def purgue_detected_faces_angles_eyes_confidence(detected_faces_angles_eyes_confidences, weight_confidences_by_area=True):
     # detected_faces_eyes might also contain confidence values or other information
-    detected_faces_eyes_confidences = numpy.array(detected_faces_eyes_confidences)
+    detected_faces_angles_eyes_confidences = numpy.array(detected_faces_angles_eyes_confidences)
 
-    if len(detected_faces_eyes_confidences) > 1:
-        detection_confidences = detected_faces_eyes_confidences[:, -1]
+    if len(detected_faces_angles_eyes_confidences) > 1:
+        detection_confidences = detected_faces_angles_eyes_confidences[:, -1]
         if weight_confidences_by_area:
             # Eye distance is used to compute an "area"
-            detection_areas = ((detected_faces_eyes_confidences[:, 6] - detected_faces_eyes_confidences[:, 4]) ** 2 +
-                               (detected_faces_eyes_confidences[:, 7] - detected_faces_eyes_confidences[:, 5]) ** 2) ** 0.5
+            detection_areas = ((detected_faces_angles_eyes_confidences[:, 7] - detected_faces_angles_eyes_confidences[:, 5]) ** 2 +
+                               (detected_faces_angles_eyes_confidences[:, 8] - detected_faces_angles_eyes_confidences[:, 6]) ** 2) ** 0.5
             weighted_confidences = (1.0 - detection_confidences) * detection_areas
             weighted_confidences = weighted_confidences / weighted_confidences.max()
         else:
             weighted_confidences = detection_confidences.copy()
         ordering = numpy.argsort(weighted_confidences)[::-1]
-        # print "original confidences =", detected_faces_eyes_confidences[:,-1]
-        detected_faces_eyes_confidences = detected_faces_eyes_confidences[ordering, :]
+        # print "original confidences =", detected_faces_angles_eyes_confidences[:,-1]
+        detected_faces_angles_eyes_confidences = detected_faces_angles_eyes_confidences[ordering, :]
 
         # print "ordering=", ordering
-        # print "ordered confidences =", detected_faces_eyes_confidences[:,-1]
-        print "sorted detected_faces_eyes_confidences", detected_faces_eyes_confidences[:, -1]
+        # print "ordered confidences =", detected_faces_angles_eyes_confidences[:,-1]
+        print "sorted detected_faces_angles_eyes_confidences", detected_faces_angles_eyes_confidences[:, -1]
         print "sorted weighted confidences:", weighted_confidences[ordering]
 
-        unique_faces_eyes_confidences = []
-        unique_faces_eyes_confidences.append(detected_faces_eyes_confidences[0])
-        for face_eye_coords in detected_faces_eyes_confidences:
+        unique_faces_angles_eyes_confidences = []
+        unique_faces_angles_eyes_confidences.append(detected_faces_angles_eyes_confidences[0])
+        for face_angle_eye_coords in detected_faces_angles_eyes_confidences:
             min_d = 10000
-            for face_eye_coords2 in unique_faces_eyes_confidences:
-                error = relative_error_detection(face_eye_coords[4:8], face_eye_coords2[4:8])
+            for face_angle_eye_coords2 in unique_faces_angles_eyes_confidences:
+                error = relative_error_detection(face_angle_eye_coords[5:9], face_angle_eye_coords2[5:9])
                 if error < min_d:
                     min_d = error
             if min_d > 0.25:  # 25: #entries are different enough
-                unique_faces_eyes_confidences.append(face_eye_coords)
-        return unique_faces_eyes_confidences
+                unique_faces_angles_eyes_confidences.append(face_angle_eye_coords)
+        return unique_faces_angles_eyes_confidences
     else:
-        return detected_faces_eyes_confidences.copy()
+        return detected_faces_angles_eyes_confidences.copy()
 
 
 def read_batch_file(batch_filename):
@@ -1105,7 +1105,7 @@ def find_Left_Right_eyes(images, curr_image_indices, curr_angles, eyesL_box_orig
 # # 
 # #             benchmark.add_task_from_previous_time("Adjusted eye coordinates accounting for rotation angle (L or R)")
 
-def estimate_age_race_gender(image, detected_faces_eyes_confidences_purgued, benchmark, number_saved_image_age_estimation, age_subimage_width, age_subimage_height, num_networks, networks, classifiers, estimate_age=True, estimate_race=True, estimate_gender=True, verbose=True):
+def estimate_age_race_gender(image, detected_faces_angles_eyes_confidences_purgued, benchmark, number_saved_image_age_estimation, age_subimage_width, age_subimage_height, num_networks, networks, classifiers, estimate_age=True, estimate_race=True, estimate_gender=True, verbose=True):
     # Parameters used to emulate face normalization
     normalization_method = "eyes_inferred-mouth_areaZ"
     centering_mode = "mid_eyes_inferred-mouth"
@@ -1135,7 +1135,7 @@ def estimate_age_race_gender(image, detected_faces_eyes_confidences_purgued, ben
     age_translations_y = -6.0 / reduction_factor
 
     # 1)Extract face patches (usually 96x96, centered according to the eye positions)
-    num_faces_found = len(detected_faces_eyes_confidences_purgued)
+    num_faces_found = len(detected_faces_angles_eyes_confidences_purgued)
     age_estimates = numpy.zeros(num_faces_found)
     age_stds = numpy.zeros(num_faces_found)
     race_estimates = 10 * numpy.ones(num_faces_found)
@@ -1143,12 +1143,12 @@ def estimate_age_race_gender(image, detected_faces_eyes_confidences_purgued, ben
 
     benchmark.add_task_from_previous_time("Prepared for age, gender, and race estimation")
 
-    for j, box_eyes_coords_confidence in enumerate(detected_faces_eyes_confidences_purgued):
+    for j, box_angles_eyes_coords_confidence in enumerate(detected_faces_angles_eyes_confidences_purgued):
         # A) Generate normalized image
         # contents: eyeL_x, eyeL_y, eyeR_x, eyeR_y, mouth_x, mouth_y
         benchmark.update_start_time()
-        float_coords = [box_eyes_coords_confidence[4], box_eyes_coords_confidence[5], box_eyes_coords_confidence[6],
-                        box_eyes_coords_confidence[7], 0.0, 0.0]
+        float_coords = [box_angles_eyes_coords_confidence[5], box_angles_eyes_coords_confidence[6], box_angles_eyes_coords_confidence[7],
+                        box_angles_eyes_coords_confidence[8], 0.0, 0.0]
         im2 = face_normalization_tools.normalize_image(None, float_coords,
                                                        normalization_method=normalization_method,
                                                        centering_mode=centering_mode,

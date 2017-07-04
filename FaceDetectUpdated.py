@@ -90,7 +90,7 @@ save_patches_base_dir = "./saved_patches"
 network_figures_together = True  # and False
 cut_offs_face = [0.99, 0.95, 0.85, 0.8, 0.7, 0.6, 0.5, 0.45, 0.10, 0.05]  # [0.99995,0.999,0.99997,0.9,0.8]
 last_cut_off_face = -1
-write_age_gender_confidence = True  # and False
+write_age_race_gender_confidence = True  # and False
 show_confidences = True
 show_final_detection = False or True
 camera_enabled = False
@@ -281,7 +281,7 @@ if command_line_interface:
                                         "write_results=",
                                         "adaptive_grid_scale=", "adaptive_grid_coords=", "save_patches=",
                                         "network_figures_together=",
-                                        "last_cut_off_face=", "cut_offs_face=", "write_age_gender_confidence=",
+                                        "last_cut_off_face=", "cut_offs_face=", "write_age_race_gender_confidence=",
                                         "show_final_detection=",
                                         "camera_enabled=", "track_single_face=", "pygame_display=",
                                         "estimate_age_race_gender=",
@@ -368,9 +368,9 @@ if command_line_interface:
                         er = "Number of cut_off values should be 10 and separated by commas."
                         raise Exception(er)
                     print "Setting cut_off_faces to", cut_offs_face  # ," Last cut_off not changed."
-                elif opt in ('--write_age_gender_confidence'):
-                    write_age_gender_confidence = bool(int(arg))
-                    print "Setting write_age_gender_confidence to", write_age_gender_confidence
+                elif opt in ('--write_age_race_gender_confidence'):
+                    write_age_race_gender_confidence = bool(int(arg))
+                    print "Setting write_age_race_gender_confidence to", write_age_race_gender_confidence
                 elif opt in ('--show_final_detection'):
                     show_final_detection = bool(int(arg))
                     print "Setting show_final_detection to", show_final_detection
@@ -575,7 +575,7 @@ for im_number in image_numbers:
     # print images
     # quit()
 
-    detected_faces_eyes_confidences = []
+    detected_faces_angles_eyes_confidences = []
     #    benchmark.append(("Image loading a sampling value %f"%sampling_value, t2-t1))
 
     sampling_values = compute_sampling_values(im_width, im_height, subimage_width, subimage_height, smallest_face, net_mins, net_maxs, patch_overlap_sampling, adaptive_grid_scale, track_single_face, face_has_been_found, tracked_face)
@@ -605,16 +605,11 @@ for im_number in image_numbers:
             #    for xx in range(orig_num_subimages):
             orig_image_indices[im * orig_num_subimages:(im + 1) * orig_num_subimages] = im
 
-            # Check that this is not memory inefficient
-        # subimage_coordinates = subimage_coordinates times num_images
-        # image = images[0] #TODO => loop
-
         orig_colors = numpy.random.uniform(0.0, 1.0, size=(orig_num_subimages, 3))
 
         curr_num_subimages = orig_num_subimages
         curr_subimage_coordinates = orig_subimage_coordinates.copy()
         curr_angles = orig_angles.copy()
-        # curr_invalid_subimages = numpy.zeros(curr_num_subimages, dtype='bool')
         curr_image_indices = orig_image_indices.copy()
         curr_orig_index = numpy.arange(curr_num_subimages)
 
@@ -654,7 +649,7 @@ for im_number in image_numbers:
         else:
             subplots = [None, ] * 20
 
-        benchmark.add_task_from_previous_time("Window creation, and pre computations")
+        benchmark.add_task_from_previous_time("Window creation, and pre-computations")
 
         for num_network in range(num_networks - 5):
             benchmark.update_start_time()
@@ -671,8 +666,6 @@ for im_number in image_numbers:
                 if network_types[num_network - 1][0:-1] == "Disc":
                     print "skiping image extraction because previous net is of type Disc!"
                     skip_image_extraction = 1
-                #                else:
-                #                    print "NT-1=", network_types[num_network-1][0:-1]
             if networks[num_network] is None:
                 skip_image_extraction = 1
                 skip_feature_extraction = 1
@@ -686,11 +679,6 @@ for im_number in image_numbers:
 
             benchmark.add_task_from_previous_time("Extraction of subimages patches")
 
-            # if num_network == num_networks-3: #last network before eye detection networks
-            #     print "curr_angles=", curr_angles
-            #     print "saving patches"
-            #     for i in range(len(subimages)):
-            #         subimages[i].save("patch_im%03d_PAngle%f.jpg"%(i,curr_angles[i]))
             benchmark_reference = "networks"  # "net%d"%num_network
             if len(subimages_arr) > 0:
                 if skip_feature_extraction == 0:
@@ -949,13 +937,10 @@ for im_number in image_numbers:
         eyesL_box_orig = numpy.zeros((len(curr_subimage_coordinates), 4))
         eyesR_box_orig = numpy.zeros((len(curr_subimage_coordinates), 4))
         for i, box_coords in enumerate(curr_subimage_coordinates):
-
-            # WARNING: PROBABLY THE SCALE IS INCORRECT! THE METHOD IS NOT ROBUST TO OFFSETS XY even when angles are zero
-            #            detected_faces.append(compute_approximate_eye_coordinates(eye_coords, face_sampling=0.825))
             eyes_coords_orig[i], eyesL_box_orig[i], eyesR_box_orig[i] = compute_approximate_eye_boxes_coordinates(
                 box_coords, face_sampling=0.825, eye_sampling=2.3719, rot_angle=curr_angles[i])
-            if False:
-                offset_x = -2.0  # FOR DEBUGING ONLY!!!
+            if False:   # ENABLE THIS FOR DEBUGING ONLY!!! 
+                offset_x = -2.0  
                 offset_y = -2.0
                 offset_a = 0.0  # degrees
                 eyes_coords_orig[i][0] += offset_x  # eyeL
@@ -1018,7 +1003,7 @@ for im_number in image_numbers:
             eyesL_coords = eyesL_coords[eye_xy_too_far_images == 0]
             eyesR_coords = eyesR_coords[eye_xy_too_far_images == 0]
             curr_subimage_coordinates = curr_subimage_coordinates[eye_xy_too_far_images == 0, :]
-
+            curr_angles = curr_angles[eye_xy_too_far_images == 0]
         benchmark.update_start_time()
 
         # This actually displays the found eyes
@@ -1038,11 +1023,11 @@ for im_number in image_numbers:
         benchmark.add_task_from_previous_time("Displayed all found and not discarded eyes")
 
         for j, box_coords in enumerate(curr_subimage_coordinates):
-            eyes_coords = eyes_coords_orig[j]
-            box_eyes_coords_confidence = numpy.array(
-                [box_coords[0], box_coords[1], box_coords[2], box_coords[3], eyesL_coords[j][0], eyesL_coords[j][1],
+            # eyes_coords = eyes_coords_orig[j]
+            box_angle_eyes_coords_confidence = numpy.array(
+                [box_coords[0], box_coords[1], box_coords[2], box_coords[3], curr_angles[j], eyesL_coords[j][0], eyesL_coords[j][1],
                  eyesR_coords[j][0], eyesR_coords[j][1], curr_confidence[j]])
-            detected_faces_eyes_confidences.append(box_eyes_coords_confidence)
+            detected_faces_angles_eyes_confidences.append(box_angle_eyes_coords_confidence)
 
         # Performance computation
         num_network = num_networks - 3
@@ -1181,18 +1166,18 @@ for im_number in image_numbers:
             "Plotted true face box and positions of eyes and face center (if enabled)")
 
     # print "Faces/Eyes before purge:", detected_faces_eyes_confidence
-    detected_faces_eyes_confidences_purgued = purgue_detected_faces_eyes_confidence(detected_faces_eyes_confidences)
+    detected_faces_angles_eyes_confidences_purgued = purgue_detected_faces_angles_eyes_confidence(detected_faces_angles_eyes_confidences)
     benchmark.add_task_from_previous_time("Purgued repeated face detections")
 
     print "\n%d Faces/Eyes detected after purge:" % len(
-        detected_faces_eyes_confidences_purgued), detected_faces_eyes_confidences_purgued
+        detected_faces_angles_eyes_confidences_purgued), detected_faces_angles_eyes_confidences_purgued
 
     if estimate_age or estimate_race or estimate_gender:
-        number_saved_image_age_estimation, age_estimates, age_stds, race_estimates, gender_estimates = estimate_age_race_gender(image, detected_faces_eyes_confidences_purgued, benchmark, number_saved_image_age_estimation, age_subimage_width, age_subimage_height, num_networks, networks, classifiers, estimate_age=True, estimate_race=True, estimate_gender=True, verbose=True)
+        number_saved_image_age_estimation, age_estimates, age_stds, race_estimates, gender_estimates = estimate_age_race_gender(image, detected_faces_angles_eyes_confidences_purgued, benchmark, number_saved_image_age_estimation, age_subimage_width, age_subimage_height, num_networks, networks, classifiers, estimate_age=True, estimate_race=True, estimate_gender=True, verbose=True)
 
     if track_single_face:
-        if len(detected_faces_eyes_confidences_purgued) > 0:
-            face_eyes_coords = detected_faces_eyes_confidences_purgued[0]
+        if len(detected_faces_angles_eyes_confidences_purgued) > 0:
+            face_eyes_coords = detected_faces_angles_eyes_confidences_purgued[0]
             tracked_face = (face_eyes_coords[0], face_eyes_coords[1], face_eyes_coords[2], face_eyes_coords[3])
             face_has_been_found = True
         else:
@@ -1204,8 +1189,8 @@ for im_number in image_numbers:
         plt.suptitle("Final face detections")
         ax = f0.add_subplot(111)
         ax.imshow(im_disp_rgb, aspect=1.0, interpolation='nearest', origin='upper')
-        for j, face_eyes_coords in enumerate(detected_faces_eyes_confidences_purgued):
-            b_x0, b_y0, b_x1, b_y1, el_x, el_y, er_x, er_y, conf = face_eyes_coords
+        for j, face_angles_eyes_coords in enumerate(detected_faces_angles_eyes_confidences_purgued):
+            b_x0, b_y0, b_x1, b_y1, angle, el_x, el_y, er_x, er_y, conf = face_angles_eyes_coords
             # color = (conf, conf, conf)
             color = (0.25, 0.5, 1.0)
             ax.plot([b_x0, b_x1, b_x1, b_x0, b_x0], [b_y0, b_y0, b_y1, b_y1, b_y0], color=color, linewidth=3)
@@ -1225,8 +1210,8 @@ for im_number in image_numbers:
     benchmark.add_task_from_previous_time("Final display: eyes, face box, and age, gender, race labels (if enabled)")
 
     if pygame_display:
-        for j, face_eyes_coords in enumerate(detected_faces_eyes_confidences_purgued):
-            b_x0, b_y0, b_x1, b_y1, el_x, el_y, er_x, er_y, conf = map(int, map(round, face_eyes_coords))
+        for j, face_angles_eyes_coords in enumerate(detected_faces_angles_eyes_confidences_purgued):
+            b_x0, b_y0, b_x1, b_y1, angle, el_x, el_y, er_x, er_y, conf = map(int, map(round, face_angles_eyes_coords))
 
             # plt.plot([b_x0, b_x1, b_x1, b_x0, b_x0], [b_y0, b_y0, b_y1, b_y1, b_y0], color=color, linewidth=2)
             pygame.draw.rect(screen, (255, 255, 255), (b_x0, b_y0, b_x1 - b_x0, b_y1 - b_y0), 2)
@@ -1263,18 +1248,18 @@ for im_number in image_numbers:
         print "writing face/eyes positions to disk. File:", output_filenames[im_number]
         fd = open(output_filenames[im_number], 'a')
         try:
-            for face_eyes_coords in detected_faces_eyes_confidences_purgued:
-                int_feyes = numpy.round(face_eyes_coords[0:8])
+            for j, face_angles_eyes_coords in enumerate(detected_faces_angles_eyes_confidences_purgued):
+                int_feyes = numpy.round(face_angles_eyes_coords[0:9])
                 if right_screen_eye_first:
-                    fd.write("%d, %d, %d, %d, %d, %d, %d, %d" % (int_feyes[0], int_feyes[1], int_feyes[2],
-                                                                 int_feyes[3], int_feyes[4], int_feyes[5],
-                                                                 int_feyes[6], int_feyes[7]))
+                    fd.write("%d, %d, %d, %d, %f, %d, %d, %d, %d" % (int_feyes[0], int_feyes[1], int_feyes[2],
+                                                                 int_feyes[3], face_angles_eyes_coords[4], int_feyes[7], int_feyes[8],
+                                                                 int_feyes[5], int_feyes[6]))
                 else:
-                    fd.write("%d, %d, %d, %d, %d, %d, %d, %d" % (int_feyes[0], int_feyes[1], int_feyes[2],
-                                                                 int_feyes[3], int_feyes[6], int_feyes[7],
-                                                                 int_feyes[4], int_feyes[5]))
-                if write_age_gender_confidence:
-                    fd.write(", -1, unknown, %f" % face_eyes_coords[8])
+                    fd.write("%d, %d, %d, %d, %f, %d, %d, %d, %d" % (int_feyes[0], int_feyes[1], int_feyes[2],
+                                                                 int_feyes[3], face_angles_eyes_coords[4], int_feyes[5],
+                                                                 int_feyes[6], int_feyes[7], int_feyes[8]))
+                if write_age_race_gender_confidence:
+                    fd.write(", %2.1f, %s, %s, %f" % (age_estimates[j], race_estimates[j], gender_estimates[j], face_angles_eyes_coords[9]))
                 fd.write(" \n")
         except Exception:
             print "Error while trying to write to output file %s \n" % output_filenames[im_number]
