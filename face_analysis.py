@@ -8,7 +8,7 @@
 # In each stage of the pipeline, HiGSFA reduces the data dimensionality to about 10 features, which are then
 # processed by a simple regression or classification algorithm
 #
-# By Alberto Escalante. Alberto.Escalante@neuroinformatik.ruhr-uni-bochum.de
+# By Alberto Escalante. Alberto.Escalante@ini.ruhr-uni-bochum.de
 # Ruhr-University-Bochum, Institute of Neural Computation, Group of Prof. Dr. Wiskott
 #
 # This (face_analysis.py) contains the main functions for face analysis. Most low-level work is actually done by
