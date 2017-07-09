@@ -1,16 +1,45 @@
-import string
+#! /usr/bin/env python
+# PyFaceAnalysis: Face analysis software (face localization and detection, eye localization, and
+# age, race, and gender estimation).
+#
+# This software does face analysis by using various regression and classification algorithms
+# constructed using Hierarchical Information-Preserving Graph-Based Slow Feature Analysis (HiGSFA) Networks
+# Face detection is implemented as a pipeline of face localization and discrimination networks
+# In each stage of the pipeline, HiGSFA reduces the data dimensionality to about 10 features, which are then
+# processed by a simple regression or classification algorithm
+#
+# By Alberto Escalante. Alberto.Escalante@neuroinformatik.ruhr-uni-bochum.de
+# Ruhr-University-Bochum, Institute of Neural Computation, Group of Prof. Dr. Wiskott
+#
+# This (face_analysis.py) contains the main functions for face analysis. Most low-level work is actually done by
+# the pre-trained algorithms specified by the pipeline
+
+
 import numpy
 import scipy
+import string
 from cuicuilco.image_loader import extract_subimages_rotate, images_asarray, load_image_data_monoprocessor
 import face_normalization_tools
 
-
-# Returns the eye coordinates in the same scale as the box, already considering correction face_sampling
-# First left eye, then right eye. Notice, left_x > right_x and eye_y < center_y
-# Given approximate box coordinates, corresponding to a box with some face_sampling, approximates the
-# positions of the eyes according to the normalization criteria.
-# face_sampling < 1 means that the face is larger inside the box
 def compute_approximate_eye_coordinates(box_coordinates, face_sampling=0.825, leftscreen_on_left=True):
+    """ Computes a crude approximation to the position of the eyes given a box that contains a centered face.
+    
+    From a series of boxes (approximately) centered at various faces, this function approximates the coordinates
+    of the left and right eyes. The eye coordinates are given in the same scale as the box, already 
+    considering for the face_sampling factor of the box.
+    
+    Args:    
+        box_coordinates (2-dim ndarray): Each row contains the box coordinates: box x0, box y0, box x1, box y1.
+        face_sampling (float): indicates the size of the face relative to the size of the box (default 0.825).
+                               face_sampling < 1 means that the face is larger inside the box.
+        leftscreen_on_left (bool): indicates which coordinates are given first: the left eye (True, default) or 
+                                   the right eye (False).
+                                   
+    Returns:
+        2-din ndarray: Each row contains the eye coordinates: left eye x, left eye y, right eye x, right eye y,
+                       where left eye x > right_x and eye_y < center_y.
+    """
+
     x0, y0, x1, y1 = box_coordinates
     fc_x = (x0 + x1) / 2.0
     fc_y = (y0 + y1) / 2.0
@@ -19,7 +48,7 @@ def compute_approximate_eye_coordinates(box_coordinates, face_sampling=0.825, le
         factor = 1
     else:
         factor = -1
-    # eye deltas with respect to the face center
+    # eye deltas are computed with respect to the face center
     eye_dx = 37.0 / 2.0 * numpy.abs(x1 - x0) / 128 / face_sampling
     eye_dy = 42.0 / 2.0 * numpy.abs(y1 - y0) / 128 / face_sampling
     eye_left_x = fc_x - factor * eye_dx
@@ -29,9 +58,32 @@ def compute_approximate_eye_coordinates(box_coordinates, face_sampling=0.825, le
     return numpy.array([eye_left_x, eye_y, eye_right_x, eye_y])
 
 
-# In addition to the eye coordinates, it gives two boxes containing the left and right eyes
 def compute_approximate_eye_boxes_coordinates(box_coordinates, face_sampling=0.825, eye_sampling=2.3719,
                                               leftscreen_on_left=True, rot_angle=None):
+    """ Computes a crude approximation to the position of the eyes given a (face-)box that contains a centered face. 
+    In addition to the eye coordinates, it gives two boxes containing the left and right eyes
+
+    From a series of boxes (approximately) centered at various faces, this function approximates the coordinates
+    of the left and right eyes, as well as bounding boxes of each eye. The eye and eye-box coordinates are given 
+    in the same scale as the box, already considering for the face_sampling factor of the box.
+
+    Args:    
+        box_coordinates (2-dim ndarray): Each row contains the box coordinates: box x0, box y0, box x1, box y1.
+        face_sampling (float): indicates the size of the face relative to the size of the box (default 0.825).
+                               face_sampling < 1 means that the face is larger inside the box.
+        eye_sampling (float): indicates the normalized size of an eye relative to the size its eye box (default 2.3719).
+        leftscreen_on_left (bool): indicates which coordinates are given first: the left eye (True, default) or 
+                                   the right eye (False).
+        rot_angle (1-dim ndarray): array indicating the in-plane rotation angles of the faces.
+
+    Returns:
+        eye_coordinates, left_eye_boxes, right_eye_boxes
+        eye_coordinates (2-din ndarray): Each row contains the eye coordinates: left eye x, left eye y, right eye x, right eye y,
+                       where left eye x > right_x and eye_y < center_y.
+        left_eye_boxes (2-din ndarray): Each row contains the coordinates of the left eye box (x0, y0, x1, y1).
+        right_eye_boxes (2-din ndarray): Each row contains the coordinates  of the right eye box (x0, y0, x1, y1).         
+    """
+
     x0, y0, x1, y1 = box_coordinates
     fc_x = (x0 + x1) / 2.0
     fc_y = (y0 + y1) / 2.0
@@ -83,8 +135,18 @@ def compute_approximate_eye_boxes_coordinates(box_coordinates, face_sampling=0.8
         [box_right_x0, box_right_y0, box_right_x1, box_right_y1])
 
 
-# Face midpoint is the average of the point between the eyes and the mouth
 def compute_face_midpoint(eye_left_x, eye_left_y, eye_right_x, eye_right_y, mouth_x, mouth_y):
+    """ Computes the coordinates of the center of a face (midpoint). 
+    
+    The face midpoint is defined as the mid-point of the center of the eyes and the mouth. The inputs (and outputs) 
+    are specified as scalar, but they may also be 1-dim ndarrays.
+    
+    Args:    
+        eye_left_x, eye_left_y, eye_right_x, eye_right_y, mouth_x, mouth_y (float): coordinates of the eyes and mouth 
+
+    Returns:
+        midpoint_x, midpoint_y (float): center of the faces
+    """
     eye_center_x = (eye_left_x + eye_right_x) / 2.0
     eye_center_y = (eye_left_y + eye_right_y) / 2.0
     midpoint_x = (eye_center_x + mouth_x) / 2.0

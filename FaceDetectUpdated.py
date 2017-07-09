@@ -1,13 +1,20 @@
 #! /usr/bin/env python
-# Face detection software based on several HSFA or HiGSFA Networks
-# This program implements a special purpose hierarchical network pipeline for image processing
-# Each network is a hierarchical implementation of Slow Feature Analysis (dimensionality reduction) followed by
-# a regression algorithm
-# Now with performance analysis based on a coordinate file with ground-truth, work in progress
-# Now with extensive error measurements
-# By Alberto Escalante. Alberto.Escalante@neuroinformatik.ruhr-uni-bochum.de First Version 7 Juni 2010
-# Current version 17 May 2017
+# PyFaceAnalysis: Face analysis software (face localization and detection, eye localization, and
+# age, race, and gender estimation).
+#
+# This software does face analysis by using various regression and classification algorithms
+# constructed using Hierarchical Information-Preserving Graph-Based Slow Feature Analysis (HiGSFA) Networks
+# Face detection is implemented as a pipeline of face localization and discrimination networks
+# In each stage of the pipeline, HiGSFA reduces the data dimensionality to about 10 features, which are then
+# processed by a simple regression or classification algorithm
+#
+# By Alberto Escalante. Alberto.Escalante@neuroinformatik.ruhr-uni-bochum.de
 # Ruhr-University-Bochum, Institute of Neural Computation, Group of Prof. Dr. Wiskott
+# First Version 7 Juni 2010
+# Current version 8 July 2017
+#
+# This (FaceDetectUpdated.py) is the main file and entry point, most functions are defined in the
+# 'face_analysis' and 'face_normalization_tools' modules
 
 import numpy
 import scipy
@@ -118,7 +125,6 @@ prescale_factor = 1.0
 interpolation_formats = [Image.NEAREST] * 10  # [Image.NEAREST]*1 + [Image.BILINEAR]*1 + [Image.BICUBIC]*8
 
 # sys.path.append("/home/escalafl/workspace/hiphi/src/hiphi/utils")
-# list holding the benchmark information with entries: ("description", time as float in seconds)
 
 benchmark = benchmarking.Benchmark(enabled=False)
 
@@ -176,15 +182,15 @@ enable_eyes = True
 
 
 benchmark.update_start_time()
-image_information_net, image_information_eye, image_information_age, num_networks, network_types, networks, classifiers = load_networks_from_pipeline(pipeline_filename, cache_obj, 
-                                                                                                                                        networks_base_dir, classifiers_base_dir,
-                                                                                                                                        verbose_pipeline,
-                                                                                                                                        verbose_networks)    
-# for i in range(num_networks):
-#     if network_types[i][0:-1] == "Disc":
-#         print "Description of discriminative network %d"%i
-#         more_nodes.describe_flow(networks[i])
-# quit()
+(image_information_net, image_information_eye, image_information_age, num_networks, network_types,
+ networks, classifiers) = load_networks_from_pipeline(pipeline_filename, cache_obj, networks_base_dir,
+                                                      classifiers_base_dir, verbose_pipeline, verbose_networks)
+
+if verbose_pipeline:
+    for i in range(num_networks):
+        if network_types[i][0:-1] == "Disc":
+            print "Description of discriminative network %d"%i
+            more_nodes.describe_flow(networks[i])
 
 benchmark.add_task_from_previous_time("Loading of all networks and classifiers")
     
@@ -318,79 +324,79 @@ if command_line_interface:
                     print image_filenames
                     print output_filenames
 
-                elif opt in ('--smallest_face'):
+                elif opt == ('--smallest_face'):
                     smallest_face = float(arg)
                     print "changing default size of smallest face to be found to %f * min(image_height, \
                     image_width)" % smallest_face
-                elif opt in ('--right_screen_eye_first'):
+                elif opt == ('--right_screen_eye_first'):
                     right_screen_eye_first = bool(int(arg))
                     print "changing default eye ordering. Now the eye most to the right on the screen appears on the \
                     output before the other eye"
-                elif opt in ('--true_coordinates_file'):
+                elif opt == ('--true_coordinates_file'):
                     true_coordinates_file = arg
                     image_filenames, true_coordinates = load_true_coordinates("", true_coordinates_file)
                     image_numbers = numpy.arange(len(image_filenames))
                     print "Loaded true coordinates file with %d entries" % (len(true_coordinates.keys()))
-                elif opt in ('--display_errors'):
+                elif opt == ('--display_errors'):
                     display_errors = int(arg)
                     print "Changing display_errors to %d" % display_errors
-                elif opt in ('--display_plots'):
+                elif opt == ('--display_plots'):
                     display_plots = bool(int(arg))
                     print "Changing display_plots to %d" % display_plots
-                elif opt in ('--coordinates_filename'):
+                elif opt == ('--coordinates_filename'):
                     coordinates_filename = arg
                     print "Setting coordinates file to %s" % coordinates_filename
-                elif opt in ('--skip_existing_output'):
+                elif opt == ('--skip_existing_output'):
                     skip_existing_output = bool(int(arg))
                     print "Setting skip_existing_output to", skip_existing_output
-                elif opt in ('--write_results'):
+                elif opt == ('--write_results'):
                     write_results = bool(int(arg))
                     print "Setting write_results to", write_results
-                elif opt in ('--adaptive_grid_scale'):
+                elif opt == ('--adaptive_grid_scale'):
                     adaptive_grid_scale = bool(int(arg))
                     print "Setting adaptive_grid_scale to", adaptive_grid_scale
-                elif opt in ('--adaptive_grid_coords'):
+                elif opt == ('--adaptive_grid_coords'):
                     adaptive_grid_coords = bool(int(arg))
                     print "Setting adaptive_grid_coords to", adaptive_grid_coords
-                elif opt in ('--save_patches'):
+                elif opt == ('--save_patches'):
                     save_patches = bool(int(arg))
                     print "Setting save_patches to", save_patches
-                elif opt in ('--network_figures_together'):
+                elif opt == ('--network_figures_together'):
                     network_figures_together = bool(int(arg))
                     print "Setting network_figures_together to", network_figures_together
-                elif opt in ('--last_cut_off_face'):
+                elif opt == ('--last_cut_off_face'):
                     last_cut_off_face = float(arg)
                     print "Setting last_cut_off_face to", last_cut_off_face
-                elif opt in ('--cut_offs_face'):
+                elif opt == ('--cut_offs_face'):
                     cut_offs_face = string.split(arg, ",")
                     cut_offs_face = map(float, cut_offs_face)
                     if len(cut_offs_face) != 10:
                         er = "Number of cut_off values should be 10 and separated by commas."
                         raise Exception(er)
                     print "Setting cut_off_faces to", cut_offs_face  # ," Last cut_off not changed."
-                elif opt in ('--write_age_race_gender_confidence'):
+                elif opt == ('--write_age_race_gender_confidence'):
                     write_age_race_gender_confidence = bool(int(arg))
                     print "Setting write_age_race_gender_confidence to", write_age_race_gender_confidence
-                elif opt in ('--show_final_detection'):
+                elif opt == ('--show_final_detection'):
                     show_final_detection = bool(int(arg))
                     print "Setting show_final_detection to", show_final_detection
-                elif opt in ('--camera_enabled'):
+                elif opt == ('--camera_enabled'):
                     camera_enabled = bool(int(arg))
                     print "Setting camera_enabled to", camera_enabled
-                elif opt in ('--track_single_face'):
+                elif opt == ('--track_single_face'):
                     track_single_face = bool(int(arg))
                     print "Setting track_single_face to", track_single_face
-                elif opt in ('--pygame_display'):
+                elif opt == ('--pygame_display'):
                     pygame_display = bool(int(arg))
                     print "Setting pygame_display to", pygame_display
-                elif opt in ('--estimate_age_race_gender'):
+                elif opt == ('--estimate_age_race_gender'):
                     estimate_age = estimate_race = estimate_gender = bool(int(arg))
                     print "Setting estimate_age,estimate_race, estimate_gender to", estimate_age, estimate_race, \
                         estimate_gender
-                elif opt in ('--image_prescaling'):
+                elif opt == ('--image_prescaling'):
                     image_prescaling = bool(int(arg))
                     print "Setting image_prescaling to", image_prescaling
-                elif opt in ('--save_normalized_face_detections'):
+                elif opt == ('--save_normalized_face_detections'):
                     save_normalized_face_detections = bool(int(arg))
                     print "Setting save_normalized_face_detections to", save_normalized_face_detections
                 else:
@@ -851,7 +857,7 @@ for im_number in image_numbers:
                         "box_side / box_side_orig=", box_side / box_side_orig
                     if numpy.abs(bx_error_orig) < max_Dx_diff and numpy.abs(by_error_orig) < max_Dy_diff and \
                             box_side / box_side_orig > min_scale_radio and box_side / box_side_orig < max_scale_radio:
-                        # Bingo, this is responsible of detecting the face
+                        # Bingo, this box is responsible of detecting the face
                         if debug_resp_box:
                             print "Responsible box active:",
                             print "box orig_sub_coords=", orig_sub_coords
