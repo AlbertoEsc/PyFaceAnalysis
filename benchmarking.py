@@ -1,25 +1,50 @@
+#! /usr/bin/env python
+# benchmarking: This module defines the Benchmark class, which is useful to determine how long
+# different sections of the program take to execute. 
+#
+# By Alberto Escalante. Alberto.Escalante@ini.ruhr-uni-bochum.de
+# Ruhr-University-Bochum, Institute of Neural Computation, Group of Prof. Dr. Wiskott
+
 import time
 from operator import itemgetter
 
 class Benchmark(object):
     """ A benchmark object allows keeping track of how long different program sections take.
     It is useful to optimize the speed of the code.
-    Original code contributed by Alberto N. Escalante-B. (alberto.escalante@ini.rub.de) 
+    Original code contributed by Alberto N. Escalante-B. (alberto.escalante@ini.rub.de). 
     """    
     def __init__(self, enabled = True):
+        """ Initializes the Benchmark object.
+
+        Args:    
+            enabled (bool): Determines whether the Benchmark object is enabled. If it is disabled, all member functions
+                            do nothing during execution.                                        
+
+        Returns:
+            (Benchmark): The newly created Benchmark object.
+        """
         self.enabled = enabled
         self.previous_time = {}
         self.previous_time["a"] = time.time()
-        self.tasks_dict = {} #keys are text labels, entries are tuples (total_time, num_repetitions, task_number)         
+        self.tasks_dict = {} # keys are text labels, entries are tuples (total_time, num_repetitions, task_number)         
         self.task_number = 0
         self.default_reference = "a"
-        #super(Benchmark, self).__init__()
-    #def add_reference(self, reference):
-        #if reference in self.previous_time.keys():
+        # super(Benchmark, self).__init__()
+        # def add_reference(self, reference):
+        # if reference in self.previous_time.keys():
         #    er = "reference " + str(reference) + " has already been registered, use a different one"
         #    raise Exception (er)
-    #    self.previous_time[reference] = time.time()        
+        #    self.previous_time[reference] = time.time()        
+    
     def add_task_ellapsed(self, task_label, ellapsed_time, reference=None):
+        """ Adds a time measurement to a given task given a time reference.
+
+        Args:    
+            task_label (string)): The name of the task. E.g., "Data pre-processing".
+            ellapsed_time (float): The time (in seconds) that this task took to execute.
+            reference (string): This string identifies the timer used to store the task. If not specified (None), 
+                                the default reference is timer "a".
+        """
         if not self.enabled:
             return
         if reference is None:
@@ -30,7 +55,16 @@ class Benchmark(object):
         else:
             self.tasks_dict[(reference, task_label)] = (ellapsed_time, 1, self.task_number)
             self.task_number += 1
+    
     def add_task_from_previous_time(self, task_label, reference=None):
+        """ Creates a time measurement for a given task with respect to the previous time measurement done 
+        using a given time reference.
+
+        Args:    
+            task_label (string)): The name of the task. E.g., "Data pre-processing".
+            reference (string): This string identifies the timer used to store the task. If not specified (None), 
+                                the default reference is timer "a".
+        """
         if not self.enabled:
             return
         if reference is None:
@@ -39,15 +73,31 @@ class Benchmark(object):
         ellapsed_time = now - self.previous_time[reference]
         self.add_task_ellapsed(task_label, ellapsed_time, reference)
         self.previous_time[reference] = now
+    
     def update_start_time(self, reference=None):
+        """ The start time of the timer specified by reference is reset to the current time.
+        Args:    
+            reference (string): This string identifies the timer used to store the task. If not specified (None), 
+                                the default reference is timer "a".
+        """
         if self.enabled:
             if reference is None:
                 reference = self.default_reference
             self.previous_time[reference] = time.time()
+    
     def set_default_reference(self, reference):
+        """ Changes the reference used by default.
+        Args:    
+            reference (string): This string identifies the new default timer.
+        """
         if self.enabled:
             self.default_reference = reference
+    
     def display(self):
+        """ Shows (stdout) a summary with all the tasks. 
+        
+        The information displayed is the reference timers, the task names, the total execution time, the number of executions, and the average execution time. 
+        """
         benchmark_array = self.tasks_dict.items() # [(reference, task_label), (total_ellapsed_time, num_repetitions, task_number), ...]
         print "benchmark_array=", benchmark_array
         sorted_benchmark_array = sorted(benchmark_array, key=lambda x: x[1][2])
@@ -59,6 +109,7 @@ class Benchmark(object):
         
             
 if __name__ == "__main__":
+    # This code is useful only to test the module
     import numpy
     benchmark = Benchmark()
     x = numpy.random.normal(size=(1000,1000))
