@@ -393,6 +393,8 @@ if command_line_interface:
                     estimate_age = estimate_race = estimate_gender = bool(int(arg))
                     print "Setting estimate_age,estimate_race, estimate_gender to", estimate_age, estimate_race, \
                         estimate_gender
+                    if estimate_age == False:
+                        write_age_race_gender_confidence = False
                 elif opt == ('--image_prescaling'):
                     image_prescaling = bool(int(arg))
                     print "Setting image_prescaling to", image_prescaling
@@ -634,6 +636,9 @@ for im_number in image_numbers:
         if display_plots or show_final_detection:
             im_disp = numpy.asarray(images[0])
             im_disp_rgb = numpy.asarray(images_rgb[0])
+        else:
+            im_disp = None
+            im_disp_rgb = None
 
         if display_plots:
             plots_created = True
@@ -1269,6 +1274,7 @@ for im_number in image_numbers:
                 fd.write(" \n")
         except Exception:
             print "Error while trying to write to output file %s \n" % output_filenames[im_number]
+            # print str(Exception)
         fd.close()
 
     benchmark.add_task_from_previous_time("Results were written to output file (if enabled)")
