@@ -12,6 +12,10 @@ The estimation of age, gender, and race has been trained using mug-shots, where 
 
 The image formats that are supported are all of them that can be loaded by PIL (e.g., .jpg, .png).
 
+
+## News
+* **29.03.2018** PyFaceAnalysis now runs using the latest version of mdp (current master) and a recent version of the cuicuilco library (checkout 9bfd24201b0e4107b9689c13b2da55e3a01cfb55)
+
 ## Examples of analyzed faces 
 <img src="sample_analyses/EmmaWatson2.png" width="400"/> Image Copyright [Kingsley Huang](https://www.flickr.com/photos/flywithinsun/5946368231/) under the Creative Commons Atribution-NonCommercial 2.0 Generic license ([CC BY-NC 2.0](https://creativecommons.org/licenses/by-nc/2.0/)). Modifications: resizing, face detection, eye detection, and age, gender and race estimation.
 
@@ -19,8 +23,8 @@ The image formats that are supported are all of them that can be loaded by PIL (
 
 ## Dependencies
 PyFaceAnalysis requires the following libraries:
-* [Modular Toolkit for Data Processing (MDP)](https://github.com/mdp-toolkit/mdp-toolkit) version 3.3
-* [cuicuilco](https://github.com/AlbertoEsc/cuicuilco)
+* [Modular Toolkit for Data Processing (MDP)](https://github.com/mdp-toolkit/mdp-toolkit) most recent version
+* [cuicuilco](https://github.com/AlbertoEsc/cuicuilco) (version for checkout: 9bfd24201b0e4107b9689c13b2da55e3a01cfb55)
 * MKL
 * numexpr
 * pygame
