@@ -31,7 +31,7 @@ import sys
 import glob
 import random
 from cuicuilco import sfa_libs
-from cuicuilco.sfa_libs import (scale_to, distance_squared_Euclidean, str3, wider_1Darray, ndarray_to_string, cutoff)
+from cuicuilco.sfa_libs import (scale_to, distance_squared_Euclidean, str3, wider_1Darray, ndarray_to_string)  # , cutoff)
 
 from cuicuilco import system_parameters
 from cuicuilco import nonlinear_expansion
